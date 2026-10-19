@@ -1,0 +1,181 @@
+[
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf_server_test\\windows\\x64\\releasedbg\\test\\server_test.cpp.obj", "test\\server_test.cpp"],
+  "file": "test\\server_test.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\example_ws_server\\windows\\x64\\releasedbg\\examples\\ws_server.cpp.obj", "examples\\ws_server.cpp"],
+  "file": "examples\\ws_server.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf_ws_test\\windows\\x64\\releasedbg\\test\\ws_test.cpp.obj", "test\\ws_test.cpp"],
+  "file": "test\\ws_test.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf_ws_tls_client_test\\windows\\x64\\releasedbg\\test\\ws_tls_client_test.cpp.obj", "test\\ws_tls_client_test.cpp"],
+  "file": "test\\ws_tls_client_test.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-gcc.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c11", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-DNDEBUG", "-o", "build\\.objs\\wireleaf_thirdparty\\windows\\x64\\releasedbg\\src\\llhttp.c.obj", "src\\llhttp.c"],
+  "file": "src\\llhttp.c"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-gcc.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c11", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-DNDEBUG", "-o", "build\\.objs\\wireleaf_thirdparty\\windows\\x64\\releasedbg\\src\\api.c.obj", "src\\api.c"],
+  "file": "src\\api.c"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-gcc.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c11", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-DNDEBUG", "-o", "build\\.objs\\wireleaf_thirdparty\\windows\\x64\\releasedbg\\src\\http.c.obj", "src\\http.c"],
+  "file": "src\\http.c"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\detail\\base64.cpp.obj", "src\\wireleaf\\detail\\base64.cpp"],
+  "file": "src\\wireleaf\\detail\\base64.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\detail\\buffer.cpp.obj", "src\\wireleaf\\detail\\buffer.cpp"],
+  "file": "src\\wireleaf\\detail\\buffer.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\detail\\net.cpp.obj", "src\\wireleaf\\detail\\net.cpp"],
+  "file": "src\\wireleaf\\detail\\net.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\detail\\sha1.cpp.obj", "src\\wireleaf\\detail\\sha1.cpp"],
+  "file": "src\\wireleaf\\detail\\sha1.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\detail\\stream.cpp.obj", "src\\wireleaf\\detail\\stream.cpp"],
+  "file": "src\\wireleaf\\detail\\stream.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\http\\client.cpp.obj", "src\\wireleaf\\http\\client.cpp"],
+  "file": "src\\wireleaf\\http\\client.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\http\\message.cpp.obj", "src\\wireleaf\\http\\message.cpp"],
+  "file": "src\\wireleaf\\http\\message.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\http\\parser.cpp.obj", "src\\wireleaf\\http\\parser.cpp"],
+  "file": "src\\wireleaf\\http\\parser.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\http\\request.cpp.obj", "src\\wireleaf\\http\\request.cpp"],
+  "file": "src\\wireleaf\\http\\request.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\http\\response.cpp.obj", "src\\wireleaf\\http\\response.cpp"],
+  "file": "src\\wireleaf\\http\\response.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\http\\server.cpp.obj", "src\\wireleaf\\http\\server.cpp"],
+  "file": "src\\wireleaf\\http\\server.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\http\\session.cpp.obj", "src\\wireleaf\\http\\session.cpp"],
+  "file": "src\\wireleaf\\http\\session.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\utils\\strings.cpp.obj", "src\\wireleaf\\utils\\strings.cpp"],
+  "file": "src\\wireleaf\\utils\\strings.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\websocket\\client.cpp.obj", "src\\wireleaf\\websocket\\client.cpp"],
+  "file": "src\\wireleaf\\websocket\\client.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\websocket\\frame.cpp.obj", "src\\wireleaf\\websocket\\frame.cpp"],
+  "file": "src\\wireleaf\\websocket\\frame.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\websocket\\handshake.cpp.obj", "src\\wireleaf\\websocket\\handshake.cpp"],
+  "file": "src\\wireleaf\\websocket\\handshake.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\websocket\\message.cpp.obj", "src\\wireleaf\\websocket\\message.cpp"],
+  "file": "src\\wireleaf\\websocket\\message.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf\\windows\\x64\\releasedbg\\src\\wireleaf\\websocket\\session.cpp.obj", "src\\wireleaf\\websocket\\session.cpp"],
+  "file": "src\\wireleaf\\websocket\\session.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf_split_test\\windows\\x64\\releasedbg\\test\\split_test.cpp.obj", "test\\split_test.cpp"],
+  "file": "test\\split_test.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\example_ws_client\\windows\\x64\\releasedbg\\examples\\ws_client.cpp.obj", "examples\\ws_client.cpp"],
+  "file": "examples\\ws_client.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\example_http_server\\windows\\x64\\releasedbg\\examples\\http_server.cpp.obj", "examples\\http_server.cpp"],
+  "file": "examples\\http_server.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf_stress_test\\windows\\x64\\releasedbg\\test\\stress_test.cpp.obj", "test\\stress_test.cpp"],
+  "file": "test\\stress_test.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf_tls_client_test\\windows\\x64\\releasedbg\\test\\tls_client_test.cpp.obj", "test\\tls_client_test.cpp"],
+  "file": "test\\tls_client_test.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf_http_client_test\\windows\\x64\\releasedbg\\test\\http_client_test.cpp.obj", "test\\http_client_test.cpp"],
+  "file": "test\\http_client_test.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf_http_test\\windows\\x64\\releasedbg\\test\\http_test.cpp.obj", "test\\http_test.cpp"],
+  "file": "test\\http_test.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf_ws_client_test\\windows\\x64\\releasedbg\\test\\ws_client_test.cpp.obj", "test\\ws_client_test.cpp"],
+  "file": "test\\ws_client_test.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\wireleaf_buffer_test\\windows\\x64\\releasedbg\\test\\buffer_test.cpp.obj", "test\\buffer_test.cpp"],
+  "file": "test\\buffer_test.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\example_https_client\\windows\\x64\\releasedbg\\examples\\https_client.cpp.obj", "examples\\https_client.cpp"],
+  "file": "examples\\https_client.cpp"
+},
+{
+  "directory": "c:\\MyData\\MartCat2Js\\ProjectsMy\\Cpp\\Network\\wireleaf",
+  "arguments": ["C:\\MyData\\App\\Compress\\mingw64\\bin\\x86_64-w64-mingw32-g++.exe", "-c", "-m64", "-g", "-Ofast", "-msse4.2", "-std=c++20", "-IC:\\MyData\\Libs\\StaticMingw\\libressl-4.3.2\\x64\\include", "-Isrc", "-D_WIN32_WINNT=0x0601", "-fexceptions", "-DNDEBUG", "-o", "build\\.objs\\example_http_client\\windows\\x64\\releasedbg\\examples\\http_client.cpp.obj", "examples\\http_client.cpp"],
+  "file": "examples\\http_client.cpp"
+}]
