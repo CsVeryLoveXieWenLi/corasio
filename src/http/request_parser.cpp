@@ -155,7 +155,6 @@ int request_parser::on_body(llhttp_t* parser, const char* at, size_t length) noe
 int request_parser::on_message_complete(llhttp_t* parser) noexcept {
     auto* self = static_cast<request_parser*>(parser->data);
     if (self->chunked_) self->request_.set_body(self->body_);
-    // 整个报文已经解析完，这时取 keep-alive 才是准的（llhttp 会看版本 + Connection 头）
     self->request_.set_keep_alive(llhttp_should_keep_alive(parser) != 0);
     return HPE_PAUSED;
 };

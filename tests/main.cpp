@@ -327,6 +327,8 @@ int main() {
     test_server();
     test_client();
     test_tls_client();
+    test_proxy();
+    test_tls_proxy();
 
     std::printf("\n%s (failures=%d)\n", failures == 0 ? "ALL PASS" : "FAILED", failures);
     std::fflush(stdout);

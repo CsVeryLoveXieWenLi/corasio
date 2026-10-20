@@ -25,6 +25,9 @@ struct stream_traits {
         slot.emplace(std::move(executor));
     };
 
+    // 明文不建隧道：连上代理直接发 absolute-form
+    asio::awaitable<bool> connect_tunnel(Socket&, std::string_view, std::string_view) noexcept { co_return true; };
+
     asio::awaitable<bool> handshake(Socket&, std::string_view) noexcept { co_return true; };
 };
 
@@ -36,7 +39,11 @@ public:
     static constexpr std::string_view default_port = stream_traits<Socket>::default_port;
 
 public:
-    asio::awaitable<bool> connect(std::string_view host, std::string_view port) noexcept {
+    // tunnel_host 为空表示直连；非空则先让代理按它建隧道，再用它做 SNI
+    asio::awaitable<bool> connect(std::string_view host,
+                                  std::string_view port,
+                                  std::string_view tunnel_host = {},
+                                  std::string_view tunnel_port = {}) noexcept {
         traits_.make(co_await asio::this_coro::executor, socket_);
 
         asio::ip::tcp::resolver resolver(co_await asio::this_coro::executor);
@@ -49,7 +56,9 @@ public:
         asio::error_code ignored;
         socket_->lowest_layer().set_option(asio::ip::tcp::no_delay(true), ignored);
 
-        if (!co_await traits_.handshake(*socket_, host)) co_return false;
+        const bool tunnel = !tunnel_host.empty();
+        if (tunnel && !co_await traits_.connect_tunnel(*socket_, tunnel_host, tunnel_port)) co_return false;
+        if (!co_await traits_.handshake(*socket_, tunnel ? tunnel_host : host)) co_return false;
 
         co_return true;
     };

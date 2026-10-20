@@ -6,7 +6,6 @@
 #pragma once
 
 #include "detail/buffer.h"
-#include "detail/text.h"
 #include "http/request.h"
 #include "http/response.h"
 #include "http/response_parser.h"
@@ -25,7 +24,8 @@
 
 
 namespace corasio::http {
-// host/port 的生命周期由调用方保证
+// connect 的入口放在各自的子类里（明文和 TLS 传参方式不同），这里只收共同逻辑。
+// 传进来的字符串由调用方保证生命周期
 template <typename Stream>
 class basic_client {
 public:
@@ -43,14 +43,18 @@ public:
     void set_write_timeout(std::chrono::milliseconds ms) noexcept { write_timeout_ = ms; };
     void set_buffer_size(std::size_t size) noexcept { buffer_size_ = size; };
 
-    // port 留空用 Stream::default_port；同一个 host/port 直接复用
-    asio::awaitable<bool> connect(std::string_view host, std::string_view port = {}) noexcept;
-
-    // 结果通过 get_response() 拿（解析器里的那份），有效到下一次 send/connect
+    // 结果通过 get_response() 拿，有效到下一次 send/connect
     asio::awaitable<bool> send() noexcept;
 
     request& get_request() noexcept { return request_; };
     response& get_response() noexcept { return parser_.get(); };
+
+protected:
+    // tunnel_host 为空表示直连
+    asio::awaitable<bool> do_connect(std::string_view host,
+                                     std::string_view port,
+                                     std::string_view tunnel_host,
+                                     std::string_view tunnel_port) noexcept;
 
 private:
     void close() noexcept;
@@ -61,6 +65,8 @@ private:
 
     std::string_view host_;
     std::string_view port_;
+    std::string_view tunnel_host_;
+    std::string_view tunnel_port_;
 
     request request_;
     response_parser parser_;
@@ -80,20 +86,26 @@ void basic_client<Stream>::close() noexcept {
 };
 
 template <typename Stream>
-asio::awaitable<bool> basic_client<Stream>::connect(std::string_view host, std::string_view port) noexcept {
-    if (port.empty()) port = Stream::default_port;
-    if (stream_.has_value() && host == host_ && port == port_) co_return true;
+asio::awaitable<bool> basic_client<Stream>::do_connect(std::string_view host,
+                                                       std::string_view port,
+                                                       std::string_view tunnel_host,
+                                                       std::string_view tunnel_port) noexcept {
+    if (stream_.has_value() && host == host_ && port == port_ && tunnel_host == tunnel_host_ && tunnel_port == tunnel_port_) {
+        co_return true;
+    }
 
     close();
     if (host.empty()) co_return false;
 
     host_ = host;
     port_ = port;
+    tunnel_host_ = tunnel_host;
+    tunnel_port_ = tunnel_port;
 
     stream_.emplace();
     buffer_.emplace(buffer_size_);
 
-    if (!co_await stream_->connect(host_, port_)) {
+    if (!co_await stream_->connect(host_, port_, tunnel_host_, tunnel_port_)) {
         close();
         co_return false;
     }
@@ -106,7 +118,7 @@ asio::awaitable<bool> basic_client<Stream>::send() noexcept {
     // 服务器断开了就重连一次，不重发已写出去的报文
     if (!stream_.has_value()) {
         if (host_.empty()) co_return false;
-        if (!co_await connect(host_, port_)) co_return false;
+        if (!co_await do_connect(host_, port_, tunnel_host_, tunnel_port_)) co_return false;
     }
 
     buffers_.clear();
@@ -157,7 +169,13 @@ asio::awaitable<bool> basic_client<Stream>::send() noexcept {
     }
 };
 
-using client = basic_client<plain_stream>;
+class client : public basic_client<plain_stream> {
+public:
+    // 走代理时把 request 的 path 设成完整 URL 即可，这里只是连对端
+    asio::awaitable<bool> connect(std::string_view host, std::string_view port) noexcept {
+        co_return co_await do_connect(host, port, {}, {});
+    };
+};
 
 extern template class basic_client<plain_stream>;
 } // namespace corasio::http

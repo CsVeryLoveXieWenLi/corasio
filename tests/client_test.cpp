@@ -192,7 +192,7 @@ void test_tls_client() {
             c.set_write_timeout(std::chrono::milliseconds(5000));
             c.set_buffer_size(4096);
 
-            result.connected = co_await c.connect(client_host, tls_port);
+            result.connected = co_await c.connect(std::string(client_host) + ":" + tls_port);
             if (!result.connected) co_return;
 
             auto& request = c.get_request();
@@ -220,4 +220,170 @@ void test_tls_client() {
     check(result.send, "send 收到响应");
     check(result.status == "200", "状态码 200");
     check(result.body == "hello tls", "body 正确（TLS 解密后的内容）");
+}
+
+namespace {
+// 明文代理桩：只抓请求行，然后回一个固定响应（真正的转发不重要）
+void run_plain_proxy_stub(std::string* request_line) {
+    asio::io_context io;
+    asio::error_code ec;
+
+    asio::ip::tcp::acceptor acceptor(io);
+    const auto endpoint = asio::ip::tcp::endpoint(asio::ip::make_address(client_host), 18714);
+    acceptor.open(endpoint.protocol(), ec);
+    acceptor.set_option(asio::socket_base::reuse_address(true), ec);
+    acceptor.bind(endpoint, ec);
+    acceptor.listen(asio::socket_base::max_listen_connections, ec);
+
+    asio::ip::tcp::socket socket(io);
+    acceptor.accept(socket, ec);
+    if (ec) return;
+
+    asio::streambuf buf;
+    asio::read_until(socket, buf, "\r\n\r\n", ec);
+    if (ec) return;
+
+    std::string head(asio::buffers_begin(buf.data()), asio::buffers_begin(buf.data()) + buf.size());
+    if (request_line != nullptr) *request_line = head.substr(0, head.find("\r\n"));
+
+    const std::string body = "proxy";
+    const std::string response = "HTTP/1.1 200 OK\r\ncontent-length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
+    asio::write(socket, asio::buffer(response), ec);
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+}
+
+// TLS 代理桩：收 CONNECT -> 回 200 -> 在同一条 socket 上做 TLS 服务端
+void run_tls_proxy_stub(std::string* connect_line) {
+    asio::io_context io;
+    asio::error_code ec;
+
+    asio::ssl::context ctx(asio::ssl::context::tls_server);
+    ctx.use_certificate_chain_file(cert_file, ec);
+    ctx.use_private_key_file(key_file, asio::ssl::context::pem, ec);
+
+    asio::ip::tcp::acceptor acceptor(io);
+    const auto endpoint = asio::ip::tcp::endpoint(asio::ip::make_address(client_host), 18715);
+    acceptor.open(endpoint.protocol(), ec);
+    acceptor.set_option(asio::socket_base::reuse_address(true), ec);
+    acceptor.bind(endpoint, ec);
+    acceptor.listen(asio::socket_base::max_listen_connections, ec);
+
+    asio::ip::tcp::socket socket(io);
+    acceptor.accept(socket, ec);
+    if (ec) return;
+
+    asio::streambuf buf;
+    asio::read_until(socket, buf, "\r\n\r\n", ec);
+    if (ec) return;
+
+    std::string head(asio::buffers_begin(buf.data()), asio::buffers_begin(buf.data()) + buf.size());
+    if (connect_line != nullptr) *connect_line = head.substr(0, head.find("\r\n"));
+
+    asio::write(socket, asio::buffer(std::string("HTTP/1.1 200 Connection established\r\n\r\n")), ec);
+
+    asio::ssl::stream<asio::ip::tcp::socket> tls(std::move(socket), ctx);
+    tls.handshake(asio::ssl::stream_base::server, ec);
+    if (ec) return;
+
+    asio::streambuf request;
+    asio::read_until(tls, request, "\r\n\r\n", ec);
+    if (ec) return;
+
+    const std::string body = "via proxy";
+    const std::string response = "HTTP/1.1 200 OK\r\ncontent-length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
+    asio::write(tls, asio::buffer(response), ec);
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+}
+} // namespace
+
+void test_proxy() {
+    std::printf("\n[client + proxy（absolute-form）]\n");
+
+    std::string request_line;
+    std::thread stub(run_plain_proxy_stub, &request_line);
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    asio::io_context io;
+    struct outcome {
+        bool connected = false;
+        bool sent = false;
+        std::string body;
+    } result;
+
+    asio::co_spawn(
+        io,
+        [&result]() -> asio::awaitable<void> {
+            http::client c;
+            
+            result.connected = co_await c.connect("127.0.0.1", "18714");
+            if (!result.connected) co_return;
+
+            auto& request = c.get_request();
+            request.set_version(http::enums::version::v1_1);
+            request.set_method("GET");
+            request.set_path("http://example.com/");
+            request.set_header("host", "example.com");
+
+            result.sent = co_await c.send();
+            if (result.sent) result.body.assign(c.get_response().get_body());
+            co_return;
+        },
+        asio::detached);
+
+    io.run();
+    stub.join();
+
+    std::printf("    代理收到的请求行: %s\n", request_line.c_str());
+    check(result.connected, "连上代理");
+    check(request_line == "GET http://example.com/ HTTP/1.1", "请求行是 absolute-form");
+    check(result.sent && result.body == "proxy", "拿到代理返回的响应");
+}
+
+void test_tls_proxy() {
+    std::printf("\n[tls_client + proxy（CONNECT）]\n");
+
+    std::string connect_line;
+    std::thread stub(run_tls_proxy_stub, &connect_line);
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    asio::io_context io;
+    struct outcome {
+        bool connected = false;
+        bool sent = false;
+        std::string status;
+        std::string body;
+    } result;
+
+    asio::co_spawn(
+        io,
+        [&result]() -> asio::awaitable<void> {
+            http::tls_client c;
+            
+            result.connected = co_await c.connect("example.com:443", "127.0.0.1:18715");
+            if (!result.connected) co_return;
+
+            auto& request = c.get_request();
+            request.set_version(http::enums::version::v1_1);
+            request.set_method("GET");
+            request.set_path("/");
+            request.set_header("host", "example.com");
+
+            result.sent = co_await c.send();
+            if (result.sent) {
+                auto& response = c.get_response();
+                result.status.assign(response.get_status_code());
+                result.body.assign(response.get_body());
+            }
+            co_return;
+        },
+        asio::detached);
+
+    io.run();
+    stub.join();
+
+    std::printf("    代理收到的请求行: %s\n", connect_line.c_str());
+    check(result.connected, "CONNECT 隧道 + TLS 握手成功");
+    check(connect_line == "CONNECT example.com:443 HTTP/1.1", "CONNECT 的是目标 host:port");
+    check(result.sent && result.status == "200", "隧道内拿到响应");
+    check(result.body == "via proxy", "body 正确");
 }

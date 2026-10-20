@@ -5,6 +5,7 @@
  */
 #pragma once
 
+#include "detail/text.h"
 #include "http/client.h"
 #include "http/stream.h"
 
@@ -43,6 +44,29 @@ struct stream_traits<tls_socket> {
         slot.emplace(std::move(executor), context);
     };
 
+    // 让代理建隧道：CONNECT host:port，等到 2xx
+    asio::awaitable<bool> connect_tunnel(tls_socket& socket, std::string_view host, std::string_view port) noexcept {
+        const std::string authority = std::string(host) + ":" + std::string(port);
+        const std::string request = "CONNECT " + authority + " HTTP/1.1\r\nHost: " + authority + "\r\n\r\n";
+
+        const auto written = co_await asio::async_write(socket.next_layer(), asio::buffer(request), asio::as_tuple);
+        if (std::get<0>(written)) co_return false;
+
+        // 一次读一个字节，避免把隧道后面的 TLS 数据吃掉
+        std::string head;
+        char byte = 0;
+        while (head.find("\r\n\r\n") == std::string::npos) {
+            const auto result = co_await socket.next_layer().async_read_some(asio::buffer(&byte, 1), asio::as_tuple);
+            if (std::get<0>(result) || std::get<1>(result) == 0) co_return false;
+
+            head.push_back(byte);
+            if (head.size() > 1024) co_return false;
+        }
+
+        // "HTTP/1.1 200 ..."
+        co_return head.size() > 12 && head[9] == '2';
+    };
+
     asio::awaitable<bool> handshake(tls_socket& socket, std::string_view host) noexcept {
         // SNI 要的名字必须活到握手结束，只能复制
         const std::string name(host);
@@ -56,5 +80,24 @@ struct stream_traits<tls_socket> {
 };
 
 using tls_stream = basic_stream<tls_socket>;
-using tls_client = basic_client<tls_stream>;
+
+class tls_client : public basic_client<tls_stream> {
+public:
+    // hostname 形如 "host:port"；hostname_proxy 为空表示直连，非空则先 CONNECT 建隧道
+    asio::awaitable<bool> connect(std::string_view hostname_main, std::string_view hostname_proxy = {}) noexcept {
+        const auto target = detail::text::split_hostname(hostname_main);
+        if (target.first.empty()) co_return false;
+
+        const auto target_port = target.second.empty() ? tls_stream::default_port : target.second;
+
+        if (hostname_proxy.empty()) co_return co_await do_connect(target.first, target_port, {}, {});
+
+        const auto proxy = detail::text::split_hostname(hostname_proxy);
+        if (proxy.first.empty()) co_return false;
+
+        const auto proxy_port = proxy.second.empty() ? std::string_view("80") : proxy.second;
+        co_return co_await do_connect(proxy.first, proxy_port, target.first, target_port);
+    };
+};
 } // namespace corasio::http
+

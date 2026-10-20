@@ -12,3 +12,5 @@ void check(bool cond, const char* what);
 // 各测试文件里的入口
 void test_client();
 void test_tls_client();
+void test_proxy();
+void test_tls_proxy();
