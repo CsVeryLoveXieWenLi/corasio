@@ -34,6 +34,15 @@ if is_mode('releasedbg', 'release') then
 end
 
 
+-- MinGW 默认走 emutls：asio 在多个 TU 里各实例化一份"模板静态 thread_local"时
+-- TLS 槽位不会被正确合并，运行期会踩到别的变量（表现为 invalid_service_owner / SEGV）
+-- 加 -mthreads 改走原生 TLS 即可
+if is_plat('windows') then
+    add_cxflags('-mthreads')
+    add_ldflags('-mthreads')
+end
+
+
 -- 语言版本
 set_languages('clatest', 'c++20')
 
@@ -69,7 +78,33 @@ target('corasio')
 
     -- 依赖一写，头文件路径（public includedirs）和
     -- 静态库（llhttp）就自动带上了，不需要手写 -I / -l
-    add_deps('asio', 'llhttp')
+    -- public：corasio 的公共头里直接 include 了 asio / llhttp 的头，
+    --         所以依赖 corasio 的 target 也应该自动拿到它们的头文件路径
+    add_deps('asio', 'llhttp', {public = true})
 
     -- 等你有了自己的公共头目录，再打开这行
     add_includedirs('include', {public = true})
+
+
+-- ============================================================
+-- 4) 测试
+--    所有测试都写在 tests/ 下，tests/main.cpp 是唯一入口
+--    （一个可执行文件只能有一个 main，其它 .cpp 只放辅助代码）
+--
+--    xmake build corasio_tests    只构建测试
+--    xmake run corasio_tests      构建并运行
+--    xmake test                   跑所有注册的测试（看退出码）
+-- ============================================================
+target('corasio_tests')
+    set_kind('binary')
+
+    -- 平时不构建，避免拖慢库的构建；需要时再显式构建
+    set_default(false)
+
+    add_files('tests/**.cpp')
+
+    -- corasio 的 asio/llhttp 依赖是 public 的，这里不用再写一遍
+    add_deps('corasio')
+
+    -- 注册给 `xmake test`
+    add_tests('default')
