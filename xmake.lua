@@ -101,10 +101,23 @@ target('corasio_tests')
     -- 平时不构建，避免拖慢库的构建；需要时再显式构建
     set_default(false)
 
+    -- xmake run 默认在 target 输出目录里跑；测试要读 tests/ 下的证书，切回工程根目录
+    set_rundir('$(projectdir)')
+
     add_files('tests/**.cpp')
 
     -- corasio 的 asio/llhttp 依赖是 public 的，这里不用再写一遍
     add_deps('corasio')
+
+    -- TLS 客户端（tls_client）只有测试用得到：库本身不 include 也不链接 libressl。
+    -- tls_client 是 header-only，谁包含它谁自己带 openssl 头 + 库
+    if is_plat('windows') then
+        local libressl = 'C:/MyData/Libs/StaticMingw/libressl-4.3.2/x64'
+        add_includedirs(path.join(libressl, 'include'))
+        add_linkdirs(path.join(libressl, 'lib'))
+        add_links('ssl', 'crypto')
+        add_syslinks('ws2_32', 'crypt32', 'userenv', 'gdi32', 'bcrypt')
+    end
 
     -- 注册给 `xmake test`
     add_tests('default')

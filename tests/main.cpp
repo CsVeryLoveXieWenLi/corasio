@@ -15,9 +15,12 @@
 
 #include "detail/buffer.h"
 #include "detail/memory_pool.h"
+#include "detail/text.h"
 #include "http/enums.h"
 #include "http/request_parser.h"
 #include "http/server.h"
+
+#include "tests.h"
 
 #include <asio.hpp>
 
@@ -27,10 +30,10 @@
 #include <cstring>
 #include <string>
 #include <thread>
+#include <tuple>
 
 using namespace corasio;
 
-namespace {
 int failures = 0;
 
 void check(bool cond, const char* what) {
@@ -42,6 +45,7 @@ void check(bool cond, const char* what) {
     std::printf("  FAIL %s\n", what);
 }
 
+namespace {
 constexpr const char* test_host = "127.0.0.1";
 constexpr const char* test_port = "18711";
 
@@ -156,6 +160,27 @@ void test_request_parser() {
         p.execute(raw2);
         check(p.get().get_keep_alive(), "reset 后不残留，默认 keep-alive = true");
     }
+}
+
+void test_text() {
+    std::printf("\n[text]\n");
+    using detail::text::split_hostname;
+
+    auto [host, port] = split_hostname("example.com:8080");
+    check(host == "example.com" && port == "8080", "host:port 拆分");
+
+    std::tie(host, port) = split_hostname("example.com");
+    check(host == "example.com" && port.empty(), "没有端口时不拆");
+
+    std::tie(host, port) = split_hostname("[::1]:443");
+    check(host == "::1" && port == "443", "[IPv6]:port 拆分");
+
+    std::tie(host, port) = split_hostname("::1");
+    check(host == "::1" && port.empty(), "裸 IPv6 整段当 host");
+
+    char buffer[] = "Host-Name";
+    detail::text::to_lower(buffer, sizeof(buffer) - 1);
+    check(std::string(buffer) == "host-name", "to_lower 就地小写");
 }
 
 void test_server() {
@@ -297,8 +322,11 @@ int main() {
 
     test_memory_pool();
     test_buffer();
+    test_text();
     test_request_parser();
     test_server();
+    test_client();
+    test_tls_client();
 
     std::printf("\n%s (failures=%d)\n", failures == 0 ? "ALL PASS" : "FAILED", failures);
     std::fflush(stdout);

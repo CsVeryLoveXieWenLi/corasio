@@ -6,7 +6,7 @@
 #include "http/response_parser.h"
 #include "http/enums.h"
 
-#include "detail/ascii.h"
+#include "detail/text.h"
 
 #include <llhttp.h>
 
@@ -93,7 +93,7 @@ int response_parser::on_header_field(llhttp_t* parser, const char* at, size_t le
 int response_parser::on_header_field_complete(llhttp_t* parser) noexcept {
     auto* self = static_cast<response_parser*>(parser->data);
     auto& key = self->header_key_;
-    detail::ascii::to_lower(const_cast<char*>(key.data()), key.size());
+    detail::text::to_lower(const_cast<char*>(key.data()), key.size());
     return HPE_OK;
 };
 
