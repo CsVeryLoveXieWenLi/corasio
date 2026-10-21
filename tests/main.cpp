@@ -13,12 +13,17 @@
 #  include <windows.h>
 #endif
 
+#include "detail/base64.h"
 #include "detail/buffer.h"
 #include "detail/memory_pool.h"
+#include "detail/random.h"
+#include "detail/sha1.h"
 #include "detail/text.h"
 #include "http/enums.h"
 #include "http/request_parser.h"
 #include "http/server.h"
+#include "websocket/enums.h"
+#include "websocket/frame.h"
 
 #include "tests.h"
 
@@ -162,6 +167,49 @@ void test_request_parser() {
     }
 }
 
+void test_digest() {
+    std::printf("\n[sha1 / base64]\n");
+
+    auto to_hex = [](const auto& value) {
+        static constexpr char digits[] = "0123456789abcdef";
+
+        std::string text;
+        for (auto byte : value) {
+            text.push_back(digits[byte >> 4]);
+            text.push_back(digits[byte & 0x0F]);
+        }
+        return text;
+    };
+
+    auto to_base64 = [](std::string_view input) {
+        std::string text;
+        detail::base64::encode(input, text);
+        return text;
+    };
+
+    check(to_hex(detail::sha1::hash("")) == "da39a3ee5e6b4b0d3255bfef95601890afd80709", "sha1 空串");
+    check(to_hex(detail::sha1::hash("abc")) == "a9993e364706816aba3e25717850c26c9cd0d89d", "sha1(\"abc\")");
+    check(to_hex(detail::sha1::hash("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq")) ==
+              "84983e441c3bd26ebaae4aa1f95129e5e54670f1",
+          "sha1 跨 64 字节块 + padding");
+
+    const std::string million(1000 * 1000, 'a');
+    check(to_hex(detail::sha1::hash(million)) == "34aa973cd4c4daa4f61eeb2bdbad27316534016f", "sha1 一百万个 a（多块循环）");
+
+    check(to_base64("").empty(), "base64 空串");
+    check(to_base64("f") == "Zg==", "base64 补两个 =");
+    check(to_base64("fo") == "Zm8=", "base64 补一个 =");
+    check(to_base64("foo") == "Zm9v", "base64 刚好 3 字节");
+    check(to_base64("foobar") == "Zm9vYmFy", "base64 两组的倍数");
+
+    const std::string key = "dGhlIHNhbXBsZSBub25jZQ==";
+    const std::string source = key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+
+    const auto accepted = detail::sha1::hash(source);
+    const auto raw = std::string_view(reinterpret_cast<const char*>(accepted.data()), accepted.size());
+    check(to_base64(raw) == "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=", "RFC 6455 的 Sec-WebSocket-Accept");
+}
+
 void test_text() {
     std::printf("\n[text]\n");
     using detail::text::split_hostname;
@@ -181,6 +229,115 @@ void test_text() {
     char buffer[] = "Host-Name";
     detail::text::to_lower(buffer, sizeof(buffer) - 1);
     check(std::string(buffer) == "host-name", "to_lower 就地小写");
+}
+
+void test_frame() {
+    std::printf("\n[websocket::frame]\n");
+
+    char bytes[14] = {};
+
+    auto header_size = [&bytes](std::uint64_t length, bool masked) {
+        websocket::frame::header value;
+        value.payload_size = length;
+        value.masked = masked;
+        value.mask_key = 0x3D21FA37;
+        return websocket::frame::write(value, bytes);
+    };
+
+    check(header_size(125, false) == 2, "长度 <= 125 用 7 bit");
+    check(header_size(126, false) == 4 && header_size(65535, false) == 4, "长度 126..65535 用 16 bit");
+    check(header_size(65536, false) == 10, "长度 > 65535 用 64 bit");
+    check(header_size(125, true) == 6 && header_size(65536, true) == 14, "掩码 key 跟在长度后面");
+
+    bool round_trip = true;
+    for (const auto length : {std::uint64_t{0}, std::uint64_t{1}, std::uint64_t{125}, std::uint64_t{126}, std::uint64_t{4096},
+                              std::uint64_t{65535}, std::uint64_t{65536}}) {
+        for (const bool masked : {false, true}) {
+            websocket::frame::header source;
+            source.payload_size = length;
+            source.op = websocket::enums::opcode::binary;
+            source.masked = masked;
+            source.mask_key = 0x3D21FA37;
+
+            const auto written = websocket::frame::write(source, bytes);
+
+            websocket::frame::header parsed;
+            const auto read = websocket::frame::parse(std::string_view(bytes, written), parsed);
+
+            if (read != written || parsed.payload_size != length || parsed.masked != masked || parsed.op != websocket::enums::opcode::binary ||
+                !parsed.fin || (masked && parsed.mask_key != 0x3D21FA37)) {
+                round_trip = false;
+            }
+        }
+    }
+    check(round_trip, "帧头编解码往返（各种长度 × 掩码）");
+
+    auto is_invalid = [](std::string_view data) {
+        websocket::frame::header parsed;
+        return websocket::frame::parse(data, parsed) == -1;
+    };
+
+    websocket::frame::header partial;
+    check(websocket::frame::parse(std::string_view("\x81", 1), partial) == 0, "半截帧头返回 0（还要更多数据）");
+    check(is_invalid(std::string_view("\xC1\x00", 2)), "rsv 非 0 非法");
+    check(is_invalid(std::string_view("\x83\x00", 2)), "保留 opcode 非法");
+    check(is_invalid(std::string_view("\x09\x00", 2)), "控制帧不能分片");
+    check(is_invalid(std::string_view("\x89\x7E\x01\x00", 4)), "控制帧 payload 不能超 125");
+
+    // RFC 6455 §5.7 的掩码例子：key = 37 fa 21 3d，payload 是 "Hello"
+    const std::string rfc = std::string("\x81\x85\x37\xfa\x21\x3d\x7f\x9f\x4d\x51\x58", 11);
+
+    websocket::frame::header parsed;
+    check(websocket::frame::parse(rfc, parsed) == 6, "RFC 掩码帧的帧头 6 字节");
+    check(parsed.masked && parsed.op == websocket::enums::opcode::text && parsed.payload_size == 5, "RFC 掩码帧的字段");
+
+    std::string payload = rfc.substr(6);
+    websocket::frame::mask(payload.data(), payload.size(), parsed.mask_key, 0);
+    check(payload == "Hello", "解掩码得到 Hello");
+
+    // 和标量实现逐字节对齐，同时验证可逆
+    auto reference = [](std::string& data, std::uint32_t key, std::size_t offset) {
+        for (std::size_t index = 0; index < data.size(); ++index) {
+            const auto position = offset + index;
+            data[index] = static_cast<char>(data[index] ^ static_cast<char>((key >> ((position & 3) * 8)) & 0xFF));
+        }
+    };
+
+    bool mask_matches = true;
+    for (std::size_t size = 0; size <= 40 && mask_matches; ++size) {
+        for (std::size_t offset = 0; offset < 4 && mask_matches; ++offset) {
+            std::string original(size, '\0');
+            for (std::size_t index = 0; index < size; ++index) original[index] = static_cast<char>(index * 7 + 1);
+
+            auto expected = original;
+            reference(expected, 0x3D21FA37, offset);
+
+            auto actual = original;
+            websocket::frame::mask(actual.data(), actual.size(), 0x3D21FA37, offset);
+            if (actual != expected) mask_matches = false;
+
+            websocket::frame::mask(actual.data(), actual.size(), 0x3D21FA37, offset);
+            if (actual != original) mask_matches = false;
+        }
+    }
+    check(mask_matches, "SSE 掩码与标量参考一致、可逆（size 0..40 × offset 0..3）");
+
+    std::string whole(50, '\0');
+    for (std::size_t index = 0; index < whole.size(); ++index) whole[index] = static_cast<char>(index * 11 + 3);
+
+    auto one_shot = whole;
+    websocket::frame::mask(one_shot.data(), one_shot.size(), 0x3D21FA37, 0);
+
+    auto split = whole;
+    websocket::frame::mask(split.data(), 7, 0x3D21FA37, 0);
+    websocket::frame::mask(split.data() + 7, split.size() - 7, 0x3D21FA37, 7);
+    check(one_shot == split, "分段掩码和一次掩码结果相同（offset 接得上）");
+
+    unsigned char first[5] = {};
+    unsigned char second[5] = {};
+    detail::random::fill(first, sizeof(first));
+    detail::random::fill(second, sizeof(second));
+    check(std::memcmp(first, second, sizeof(first)) != 0, "随机字节两次不一样");
 }
 
 void test_server() {
@@ -322,6 +479,8 @@ int main() {
 
     test_memory_pool();
     test_buffer();
+    test_digest();
+    test_frame();
     test_text();
     test_request_parser();
     test_server();
