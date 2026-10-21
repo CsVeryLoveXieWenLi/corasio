@@ -5,10 +5,10 @@
  */
 #include "tests.h"
 
-#include "http/client.h"
-#include "http/enums.h"
-#include "http/server.h"
-#include "http/tls_client.h"
+#include "corasio/http/client.h"
+#include "corasio/http/enums.h"
+#include "corasio/http/server.h"
+#include "corasio/http/tls_client.h"
 
 #include <asio.hpp>
 #include <asio/ssl.hpp>

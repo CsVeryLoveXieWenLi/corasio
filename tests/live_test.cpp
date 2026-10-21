@@ -5,8 +5,8 @@
  */
 #include "tests.h"
 
-#include "websocket/client.h"
-#include "websocket/tls_client.h"
+#include "corasio/websocket/client.h"
+#include "corasio/websocket/tls_client.h"
 
 #include <asio.hpp>
 

@@ -13,22 +13,22 @@
 #  include <windows.h>
 #endif
 
-#include "detail/base64.h"
-#include "detail/buffer.h"
-#include "detail/memory_pool.h"
-#include "detail/random.h"
-#include "detail/sha1.h"
-#include "detail/text.h"
-#include "http/enums.h"
-#include "http/request_parser.h"
-#include "http/response_parser.h"
-#include "http/server.h"
-#include "websocket/enums.h"
-#include "websocket/frame.h"
-#include "websocket/client.h"
-#include "websocket/tls_client.h"
-#include "websocket/handshake.h"
-#include "websocket/session.h"
+#include "corasio/detail/base64.h"
+#include "corasio/detail/buffer.h"
+#include "corasio/detail/memory_pool.h"
+#include "corasio/detail/random.h"
+#include "corasio/detail/sha1.h"
+#include "corasio/detail/text.h"
+#include "corasio/http/enums.h"
+#include "corasio/http/request_parser.h"
+#include "corasio/http/response_parser.h"
+#include "corasio/http/server.h"
+#include "corasio/websocket/enums.h"
+#include "corasio/websocket/frame.h"
+#include "corasio/websocket/client.h"
+#include "corasio/websocket/tls_client.h"
+#include "corasio/websocket/handshake.h"
+#include "corasio/websocket/session.h"
 
 #include <llhttp.h>
 #include <memory>

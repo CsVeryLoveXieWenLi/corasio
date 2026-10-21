@@ -7,21 +7,20 @@ Description: corasio 工程入口
 -- ============================================================
 -- 0) 安装（类似 cmake install）
 --
---    scripts\install_sdk.ps1                    -> build\install
---    scripts\install_sdk.ps1 -Prefix D:\sdk\corasio
+--    xmake install -o build\install
 --
---    装出来的结构（corasio 自己的头套一层 corasio\，库内布局不动）：
+--    装出来的结构：
 --      include\asio.hpp, asio\**                  asio 1.38.2（header-only）
 --      include\llhttp.h                           llhttp 9.4.3
 --      include\corasio\{http,websocket,detail}\   corasio 的公共头
 --      lib\corasio.lib, llhttp.lib
 --
---    使用方：
+--    使用方（只要一个 -I）：
 --      #include <corasio/http/client.h>
---      g++ ... -I<prefix>/include -I<prefix>/include/corasio -L<prefix>/lib -lcorasio -llhttp
+--      g++ ... -I<prefix>/include -L<prefix>/lib -lcorasio -lllhttp
 --
---    第二个 -I 是因为库内的头按 "http/xxx.h" 相对引用自己（树内布局不变）。
---    TLS（tls_client）不装 openssl —— 谁用 TLS 谁自己带 libressl。
+--    TLS（tls_client）不装 openssl —— 谁用 TLS 谁自己带 libressl 的头和库。
+--    不加 -o 会装到系统前缀（Windows 上通常要管理员），日常用 -o 指到工程内即可。
 -- ============================================================
 
 -- ============================================================
@@ -105,10 +104,8 @@ target('corasio')
     -- 编译期头文件路径（树内保持 #include "http/client.h" 这种写法）
     add_includedirs('include', {public = true})
 
-    -- 供 `xmake install` 用；scripts\install_sdk.ps1 会把这三个目录挪进 include\corasio\
-    add_headerfiles('include/(http/**.h)')
-    add_headerfiles('include/(websocket/**.h)')
-    add_headerfiles('include/(detail/**.h)')
+    -- 供 `xmake install` 用：树内已经是 include/corasio/...，装出来也是 <prefix>/include/corasio/...
+    add_headerfiles('include/(corasio/**.h)')
 
 
 -- ============================================================
