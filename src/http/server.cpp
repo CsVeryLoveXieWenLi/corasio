@@ -59,7 +59,7 @@ asio::awaitable<void> server::echo(asio::ip::tcp::socket socket) noexcept {
 
     request_parser parser;
     response response;
-    session sess(socket, read_timeout_, write_timeout_);
+    session sess(socket, buffer, read_timeout_, write_timeout_);
 
     auto& request = parser.get();
 
@@ -78,7 +78,11 @@ asio::awaitable<void> server::echo(asio::ip::tcp::socket socket) noexcept {
                 bool keep_alive = request.get_keep_alive();
 
                 // handler 自己决定发不发响应
+                sess.set_parsed_size(total);
                 if (handler_) co_await handler_(request, response, sess);
+
+                // 升级成 WebSocket 了：这条连接交给 ws 会话，HTTP 循环到此为止
+                if (sess.get_websocket() != nullptr) co_return;
 
                 parser.reset();
                 response.reset();

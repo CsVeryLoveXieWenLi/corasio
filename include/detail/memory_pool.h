@@ -22,7 +22,10 @@ public:
     block(const block&) = delete;
     block& operator=(const block&) = delete;
 
-    block(block&&) = delete;
+    block(block&& other) noexcept : data_(other.data_), size_(other.size_) {
+        other.data_ = nullptr;
+        other.size_ = 0;
+    };
     block& operator=(block&&) = delete;
 
 public:

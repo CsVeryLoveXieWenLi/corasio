@@ -20,7 +20,7 @@ public:
     buffer(const buffer&) = delete;
     buffer& operator=(const buffer&) = delete;
 
-    buffer(buffer&&) = delete;
+    buffer(buffer&& other) noexcept;
     buffer& operator=(buffer&&) = delete;
 
 public:

@@ -21,9 +21,15 @@
 #include "detail/text.h"
 #include "http/enums.h"
 #include "http/request_parser.h"
+#include "http/response_parser.h"
 #include "http/server.h"
 #include "websocket/enums.h"
 #include "websocket/frame.h"
+#include "websocket/handshake.h"
+#include "websocket/session.h"
+
+#include <llhttp.h>
+#include <memory>
 
 #include "tests.h"
 
@@ -35,6 +41,8 @@
 #include <cstring>
 #include <string>
 #include <thread>
+#include <utility>
+#include <vector>
 #include <tuple>
 
 using namespace corasio;
@@ -237,7 +245,7 @@ void test_frame() {
     char bytes[14] = {};
 
     auto header_size = [&bytes](std::uint64_t length, bool masked) {
-        websocket::frame::header value;
+        websocket::header value;
         value.payload_size = length;
         value.masked = masked;
         value.mask_key = 0x3D21FA37;
@@ -253,7 +261,7 @@ void test_frame() {
     for (const auto length : {std::uint64_t{0}, std::uint64_t{1}, std::uint64_t{125}, std::uint64_t{126}, std::uint64_t{4096},
                               std::uint64_t{65535}, std::uint64_t{65536}}) {
         for (const bool masked : {false, true}) {
-            websocket::frame::header source;
+            websocket::header source;
             source.payload_size = length;
             source.op = websocket::enums::opcode::binary;
             source.masked = masked;
@@ -261,7 +269,7 @@ void test_frame() {
 
             const auto written = websocket::frame::write(source, bytes);
 
-            websocket::frame::header parsed;
+            websocket::header parsed;
             const auto read = websocket::frame::parse(std::string_view(bytes, written), parsed);
 
             if (read != written || parsed.payload_size != length || parsed.masked != masked || parsed.op != websocket::enums::opcode::binary ||
@@ -273,11 +281,11 @@ void test_frame() {
     check(round_trip, "帧头编解码往返（各种长度 × 掩码）");
 
     auto is_invalid = [](std::string_view data) {
-        websocket::frame::header parsed;
+        websocket::header parsed;
         return websocket::frame::parse(data, parsed) == -1;
     };
 
-    websocket::frame::header partial;
+    websocket::header partial;
     check(websocket::frame::parse(std::string_view("\x81", 1), partial) == 0, "半截帧头返回 0（还要更多数据）");
     check(is_invalid(std::string_view("\xC1\x00", 2)), "rsv 非 0 非法");
     check(is_invalid(std::string_view("\x83\x00", 2)), "保留 opcode 非法");
@@ -287,7 +295,7 @@ void test_frame() {
     // RFC 6455 §5.7 的掩码例子：key = 37 fa 21 3d，payload 是 "Hello"
     const std::string rfc = std::string("\x81\x85\x37\xfa\x21\x3d\x7f\x9f\x4d\x51\x58", 11);
 
-    websocket::frame::header parsed;
+    websocket::header parsed;
     check(websocket::frame::parse(rfc, parsed) == 6, "RFC 掩码帧的帧头 6 字节");
     check(parsed.masked && parsed.op == websocket::enums::opcode::text && parsed.payload_size == 5, "RFC 掩码帧的字段");
 
@@ -340,6 +348,302 @@ void test_frame() {
     check(std::memcmp(first, second, sizeof(first)) != 0, "随机字节两次不一样");
 }
 
+void test_handshake() {
+    std::printf("\n[websocket::handshake]\n");
+
+    using websocket::handshake::accept_for;
+
+    check(accept_for("dGhlIHNhbXBsZSBub25jZQ==") == "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=", "RFC 6455 的 accept");
+
+    const auto key = websocket::handshake::make_key();
+    check(key.size() == 24 && key.substr(22) == "==", "make_key 是 16 字节 base64");
+    check(key != websocket::handshake::make_key(), "两次 make_key 不一样");
+
+    http::request request;
+    request.set_method("GET");
+    request.set_path("/chat");
+    request.set_header("upgrade", "websocket");
+    request.set_header("connection", "keep-alive, Upgrade");
+    request.set_header("sec-websocket-version", "13");
+    request.set_header("sec-websocket-key", key);
+    check(websocket::handshake::is_upgrade(request), "标准升级请求");
+
+    request.set_header("sec-websocket-version", "8");
+    check(!websocket::handshake::is_upgrade(request), "版本不是 13 拒绝");
+    request.set_header("sec-websocket-version", "13");
+
+    request.set_header("connection", "keep-alive");
+    check(!websocket::handshake::is_upgrade(request), "没有 connection: upgrade 拒绝");
+    request.set_header("connection", "Upgrade");
+
+    request.set_header("upgrade", "h2c");
+    check(!websocket::handshake::is_upgrade(request), "upgrade 不是 websocket 拒绝");
+    request.set_header("upgrade", "WebSocket");
+
+    http::response response;
+    response.set_status_code("101");
+    response.set_header("sec-websocket-accept", accept_for(key));
+    check(websocket::handshake::is_accepted(response, key), "101 + accept 正确");
+
+    // set_header 只存 view，值必须自己留着
+    const std::string wrong = accept_for("别的 key");
+    response.set_header("sec-websocket-accept", wrong);
+    check(!websocket::handshake::is_accepted(response, key), "accept 不对拒绝");
+
+    const std::string right = accept_for(key);
+    response.set_header("sec-websocket-accept", right);
+    response.set_status_code("200");
+    check(!websocket::handshake::is_accepted(response, key), "状态码不是 101 拒绝");
+}
+namespace {
+// 一条本地连接：一端给 session，另一端当客户端手工收发
+struct ws_sockets {
+    asio::ip::tcp::socket server;
+    asio::ip::tcp::socket peer;
+};
+
+ws_sockets make_ws_sockets(asio::io_context& io) {
+    asio::ip::tcp::acceptor acceptor(io, asio::ip::tcp::endpoint(asio::ip::make_address("127.0.0.1"), 0));
+
+    asio::ip::tcp::socket peer(io);
+    peer.connect(acceptor.local_endpoint());
+
+    asio::ip::tcp::socket server(io);
+    acceptor.accept(server);
+
+    return ws_sockets{std::move(server), std::move(peer)};
+}
+
+asio::awaitable<void> ws_peer_send(asio::ip::tcp::socket& socket, std::string_view payload, websocket::enums::opcode op, bool fin, bool masked) {
+    websocket::header header;
+    header.payload_size = payload.size();
+    header.op = op;
+    header.fin = fin;
+    header.masked = masked;
+    header.mask_key = 0x3D21FA37;
+
+    std::string body(payload);
+    if (masked) websocket::frame::mask(body.data(), body.size(), header.mask_key, 0);
+
+    char head[14] = {};
+    const auto head_size = websocket::frame::write(header, head);
+
+    std::vector<asio::const_buffer> buffers;
+    buffers.push_back(asio::buffer(head, head_size));
+    buffers.push_back(asio::buffer(body));
+
+    co_await asio::async_write(socket, buffers, asio::use_awaitable);
+}
+
+asio::awaitable<std::string> ws_peer_read(asio::ip::tcp::socket& socket, bool& masked) {
+    std::string raw;
+    char chunk[1024];
+
+    while (true) {
+        websocket::header header;
+        const auto size = websocket::frame::parse(raw, header);
+
+        if (size > 0 && raw.size() >= static_cast<std::size_t>(size) + header.payload_size) {
+            std::string payload = raw.substr(static_cast<std::size_t>(size), header.payload_size);
+            masked = header.masked;
+            if (header.masked) websocket::frame::mask(payload.data(), payload.size(), header.mask_key, 0);
+            co_return payload;
+        }
+
+        if (size == -1) co_return std::string();
+
+        const auto got = co_await socket.async_read_some(asio::buffer(chunk), asio::as_tuple);
+        if (std::get<0>(got) || std::get<1>(got) == 0) co_return std::string();
+
+        raw.append(chunk, std::get<1>(got));
+    }
+}
+
+asio::awaitable<void> ws_case_text(asio::io_context& io) {
+    auto sockets = make_ws_sockets(io);
+    detail::buffer read_buffer(4096);
+    websocket::session session(std::move(sockets.server), std::move(read_buffer));
+
+    co_await ws_peer_send(sockets.peer, "hello", websocket::enums::opcode::text, true, true);
+
+    const auto result = co_await session.read();
+    check(result.has_value() && result->op == websocket::enums::opcode::text && result->payload == "hello", "读一条完整文本消息");
+}
+
+asio::awaitable<void> ws_case_fragments(asio::io_context& io) {
+    auto sockets = make_ws_sockets(io);
+    detail::buffer read_buffer(4096);
+    websocket::session session(std::move(sockets.server), std::move(read_buffer));
+
+    co_await ws_peer_send(sockets.peer, "he", websocket::enums::opcode::text, false, true);
+    co_await ws_peer_send(sockets.peer, "ll", websocket::enums::opcode::continuation, false, true);
+    co_await ws_peer_send(sockets.peer, "o", websocket::enums::opcode::continuation, true, true);
+
+    const auto result = co_await session.read();
+    check(result.has_value() && result->payload == "hello", "三个分片拼成一条消息");
+}
+
+asio::awaitable<void> ws_case_ping(asio::io_context& io) {
+    auto sockets = make_ws_sockets(io);
+    detail::buffer read_buffer(4096);
+    websocket::session session(std::move(sockets.server), std::move(read_buffer));
+
+    co_await ws_peer_send(sockets.peer, "p", websocket::enums::opcode::ping, true, true);
+    co_await ws_peer_send(sockets.peer, "x", websocket::enums::opcode::text, true, true);
+
+    const auto result = co_await session.read();
+    check(result.has_value() && result->payload == "x", "ping 内部消化，继续读到下一条");
+
+    bool masked = true;
+    const auto pong = co_await ws_peer_read(sockets.peer, masked);
+    check(pong == "p" && !masked, "自动回 pong（不带掩码）");
+}
+
+asio::awaitable<void> ws_case_send(asio::io_context& io) {
+    auto sockets = make_ws_sockets(io);
+    detail::buffer read_buffer(4096);
+    websocket::session session(std::move(sockets.server), std::move(read_buffer));
+
+    check(co_await session.send("hi"), "send 成功");
+
+    bool masked = true;
+    const auto payload = co_await ws_peer_read(sockets.peer, masked);
+    check(payload == "hi" && !masked, "服务端发的帧不带掩码");
+}
+
+asio::awaitable<void> ws_case_unmasked(asio::io_context& io) {
+    auto sockets = make_ws_sockets(io);
+    detail::buffer read_buffer(4096);
+    websocket::session session(std::move(sockets.server), std::move(read_buffer));
+
+    co_await ws_peer_send(sockets.peer, "oops", websocket::enums::opcode::text, true, false);
+
+    const auto result = co_await session.read();
+    check(!result.has_value(), "客户端帧没掩码就断开");
+}
+
+asio::awaitable<void> ws_case_close(asio::io_context& io) {
+    auto sockets = make_ws_sockets(io);
+    detail::buffer read_buffer(4096);
+    websocket::session session(std::move(sockets.server), std::move(read_buffer));
+
+    const char code[2] = {0x03, static_cast<char>(0xE8)};
+    co_await ws_peer_send(sockets.peer, std::string_view(code, sizeof(code)), websocket::enums::opcode::close, true, true);
+
+    const auto result = co_await session.read();
+    check(result.has_value() && result->op == websocket::enums::opcode::close, "读到 close");
+
+    bool masked = true;
+    const auto echoed = co_await ws_peer_read(sockets.peer, masked);
+    check(echoed == std::string(code, sizeof(code)), "回了一个同样的 close");
+}
+} // namespace
+
+void test_websocket_session() {
+    std::printf("\n[websocket::session]\n");
+
+    asio::io_context io;
+
+    // detached 会吞异常，这里打出来
+    auto report = [](std::exception_ptr error) {
+        if (!error) return;
+
+        try {
+            std::rethrow_exception(error);
+        } catch (const std::exception& exception) {
+            std::printf("    [异常] %s\n", exception.what());
+        }
+    };
+
+    asio::co_spawn(io, ws_case_text(io), report);
+    asio::co_spawn(io, ws_case_fragments(io), report);
+    asio::co_spawn(io, ws_case_ping(io), report);
+    asio::co_spawn(io, ws_case_send(io), report);
+    asio::co_spawn(io, ws_case_unmasked(io), report);
+    asio::co_spawn(io, ws_case_close(io), report);
+
+    io.run();
+}
+void test_upgrade() {
+    std::printf("\n[http::session::upgrade]\n");
+
+    auto server = std::make_shared<http::server>();
+    server->set_read_timeout(std::chrono::milliseconds(3000));
+    server->set_write_timeout(std::chrono::milliseconds(3000));
+    server->set_handler([](http::request& request, http::response& response, http::session& session) -> asio::awaitable<void> {
+        auto* socket = co_await session.upgrade(request);
+        if (socket == nullptr) {
+            response.set_version(http::enums::version::v1_1);
+            response.set_status_code(http::enums::status_code::bad_request);
+            response.set_status_message(http::enums::status_message::bad_request);
+            response.set_header("content-length", "0");
+            co_await session.send(request, response);
+            co_return;
+        }
+
+        co_await socket->send("welcome");
+    });
+
+    std::thread([server] { server->run("127.0.0.1", "18721", 1); }).detach();
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+
+    asio::io_context io;
+
+    // 一个字节一个字节读，别把升级后的帧一起吞掉
+    auto read_head = [](asio::ip::tcp::socket& socket) {
+        std::string head;
+        char byte = 0;
+
+        while (head.find("\r\n\r\n") == std::string::npos) {
+            const auto got = socket.read_some(asio::buffer(&byte, 1));
+            if (got == 0) break;
+            head.push_back(byte);
+        }
+
+        return head;
+    };
+
+    {
+        asio::ip::tcp::socket socket(io);
+        socket.connect({asio::ip::make_address("127.0.0.1"), 18721});
+
+        const std::string key = websocket::handshake::make_key();
+        const std::string request = "GET /chat HTTP/1.1\r\nhost: 127.0.0.1:18721\r\nupgrade: websocket\r\nconnection: Upgrade\r\n"
+                                    "sec-websocket-key: " + key + "\r\nsec-websocket-version: 13\r\n\r\n";
+        asio::write(socket, asio::buffer(request));
+
+        const auto head = read_head(socket);
+
+        http::response_parser parser;
+        check(parser.execute(head) == HPE_PAUSED, "101 响应能解析完整");
+        check(websocket::handshake::is_accepted(parser.get(), key), "101 + accept 正确");
+
+        std::string raw;
+        char chunk[64];
+        websocket::header header;
+
+        while (true) {
+            const auto size = websocket::frame::parse(raw, header);
+            if (size > 0 && raw.size() >= static_cast<std::size_t>(size) + header.payload_size) break;
+
+            const auto got = socket.read_some(asio::buffer(chunk));
+            if (got == 0) break;
+            raw.append(chunk, got);
+        }
+
+        const auto size = static_cast<std::size_t>(websocket::frame::parse(raw, header));
+        check(header.op == websocket::enums::opcode::text && !header.masked, "升级后第一帧是文本、不带掩码");
+        check(raw.substr(size, header.payload_size) == "welcome", "收到 welcome");
+    }
+
+    {
+        asio::ip::tcp::socket socket(io);
+        socket.connect({asio::ip::make_address("127.0.0.1"), 18721});
+
+        asio::write(socket, asio::buffer(std::string("GET / HTTP/1.1\r\nhost: h\r\n\r\n")));
+        check(read_head(socket).rfind("HTTP/1.1 400", 0) == 0, "不是升级请求就回 400");
+    }
+}
 void test_server() {
     std::printf("\n[server]\n");
 
@@ -481,6 +785,9 @@ int main() {
     test_buffer();
     test_digest();
     test_frame();
+    test_handshake();
+    test_websocket_session();
+    test_upgrade();
     test_text();
     test_request_parser();
     test_server();

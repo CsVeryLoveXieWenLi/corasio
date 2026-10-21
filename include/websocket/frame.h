@@ -5,7 +5,7 @@
  */
 #pragma once
 
-#include "websocket/enums.h"
+#include "websocket/header.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -13,14 +13,6 @@
 
 
 namespace corasio::websocket::frame {
-struct header {
-    std::uint64_t payload_size = 0;
-    std::uint32_t mask_key = 0; // 4 个掩码字节按内存顺序打包（memcpy 从 wire 读出来就是）
-    enums::opcode op = enums::opcode::text;
-    bool fin = true;
-    bool masked = false;
-};
-
 // 返回帧头占多少字节；数据还不够返回 0；非法帧返回 -1
 std::ptrdiff_t parse(std::string_view data, header& out) noexcept;
 

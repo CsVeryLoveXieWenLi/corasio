@@ -5,6 +5,8 @@
  */
 #include "detail/buffer.h"
 
+#include <utility>
+
 #include <cstddef>
 #include <cstring>
 #include <string_view>
@@ -12,6 +14,11 @@
 
 namespace corasio::detail {
 buffer::buffer(std::size_t capacity) noexcept : block_(capacity) {};
+
+buffer::buffer(buffer&& other) noexcept : block_(std::move(other.block_)), begin_(other.begin_), end_(other.end_) {
+    other.begin_ = 0;
+    other.end_ = 0;
+};
 
 std::string_view buffer::readable() noexcept { return std::string_view(block_.data() + begin_, end_ - begin_); };
 std::size_t buffer::readable_size() noexcept { return end_ - begin_; };
