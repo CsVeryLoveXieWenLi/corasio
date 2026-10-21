@@ -876,6 +876,7 @@ int main() {
     test_upgrade();
     test_websocket_client();
     test_websocket_live();
+    test_cdp();
     test_text();
     test_request_parser();
     test_server();
