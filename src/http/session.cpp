@@ -12,6 +12,7 @@
 
 #include <chrono>
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -47,7 +48,7 @@ asio::awaitable<void> session::send(http::request& request, http::response& resp
     if (std::get<0>(result)) co_return;
 };
 
-asio::awaitable<websocket::session*> session::upgrade(http::request& request) noexcept {
+asio::awaitable<std::unique_ptr<websocket::session>> session::upgrade(http::request& request) noexcept {
     if (upgraded_ || !websocket::handshake::is_upgrade(request)) co_return nullptr;
 
     // accept 基于请求里的 key；这行字符串要活到 101 写出去
@@ -66,11 +67,11 @@ asio::awaitable<websocket::session*> session::upgrade(http::request& request) no
     // 本条请求的字节丢掉，后面的残留字节跟着 buffer 一起交给 ws
     buffer_.consume(parsed_size_);
 
-    ws_.emplace(std::move(socket_), std::move(buffer_));
-    ws_->set_read_timeout(read_timeout_);
-    ws_->set_write_timeout(write_timeout_);
-    upgraded_ = true;
+    auto ws = std::make_unique<websocket::session>(std::move(socket_), std::move(buffer_));
+    ws->set_read_timeout(read_timeout_);
+    ws->set_write_timeout(write_timeout_);
 
-    co_return &*ws_;
+    upgraded_ = true;
+    co_return std::move(ws);
 };
 } // namespace corasio::http

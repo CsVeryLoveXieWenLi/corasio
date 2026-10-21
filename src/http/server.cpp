@@ -82,7 +82,7 @@ asio::awaitable<void> server::echo(asio::ip::tcp::socket socket) noexcept {
                 if (handler_) co_await handler_(request, response, sess);
 
                 // 升级成 WebSocket 了：这条连接交给 ws 会话，HTTP 循环到此为止
-                if (sess.get_websocket() != nullptr) co_return;
+                if (sess.is_upgraded()) co_return;
 
                 parser.reset();
                 response.reset();

@@ -14,7 +14,8 @@
 
 #include <chrono>
 #include <cstddef>
-#include <optional>
+#include <memory>
+
 #include <string_view>
 #include <vector>
 
@@ -40,11 +41,11 @@ public:
     // 当前请求在缓冲里占了多少字节，之后剩的字节属于下一条报文
     void set_parsed_size(std::size_t size) noexcept { parsed_size_ = size; };
 
-    // 升级成 WebSocket：先回 101，再把 socket 交出去。失败返回 nullptr
-    asio::awaitable<websocket::session*> upgrade(http::request& request) noexcept;
+    // 升级成 WebSocket：先回 101，再把 socket/buffer 打包成 ws 会话交出去。失败返回 nullptr
+    asio::awaitable<std::unique_ptr<websocket::session>> upgrade(http::request& request) noexcept;
 
-    // 升级成功后从这里拿 ws 会话，服务端据此结束 HTTP 循环
-    websocket::session* get_websocket() noexcept { return ws_.has_value() ? &*ws_ : nullptr; };
+    // 升级后 HTTP 这边就作废了，服务端据此结束循环
+    bool is_upgraded() noexcept { return upgraded_; };
 
 private:
     asio::ip::tcp::socket& socket_;
@@ -53,7 +54,6 @@ private:
     std::chrono::milliseconds& write_timeout_;
 
     std::vector<asio::const_buffer> buffers_;
-    std::optional<websocket::session> ws_;
     std::size_t parsed_size_ = 0;
     bool upgraded_ = false;
 };

@@ -14,3 +14,4 @@ void test_client();
 void test_tls_client();
 void test_proxy();
 void test_tls_proxy();
+void test_websocket_live();

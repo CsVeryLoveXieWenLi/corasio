@@ -25,6 +25,8 @@
 #include "http/server.h"
 #include "websocket/enums.h"
 #include "websocket/frame.h"
+#include "websocket/client.h"
+#include "websocket/tls_client.h"
 #include "websocket/handshake.h"
 #include "websocket/session.h"
 
@@ -571,8 +573,8 @@ void test_upgrade() {
     server->set_read_timeout(std::chrono::milliseconds(3000));
     server->set_write_timeout(std::chrono::milliseconds(3000));
     server->set_handler([](http::request& request, http::response& response, http::session& session) -> asio::awaitable<void> {
-        auto* socket = co_await session.upgrade(request);
-        if (socket == nullptr) {
+        auto socket = co_await session.upgrade(request);
+        if (!socket) {
             response.set_version(http::enums::version::v1_1);
             response.set_status_code(http::enums::status_code::bad_request);
             response.set_status_message(http::enums::status_message::bad_request);
@@ -643,6 +645,90 @@ void test_upgrade() {
         asio::write(socket, asio::buffer(std::string("GET / HTTP/1.1\r\nhost: h\r\n\r\n")));
         check(read_head(socket).rfind("HTTP/1.1 400", 0) == 0, "不是升级请求就回 400");
     }
+}
+void test_websocket_client() {
+    std::printf("\n[websocket::client]\n");
+
+    auto server = std::make_shared<http::server>();
+    server->set_read_timeout(std::chrono::milliseconds(3000));
+    server->set_write_timeout(std::chrono::milliseconds(3000));
+    server->set_handler([](http::request& request, http::response& response, http::session& session) -> asio::awaitable<void> {
+        auto socket = co_await session.upgrade(request);
+        if (!socket) co_return;
+
+        while (auto incoming = co_await socket->read()) {
+            if (incoming->op == websocket::enums::opcode::close) co_return;
+
+            const std::string reply = "echo:" + incoming->payload;
+            if (!co_await socket->send(reply)) co_return;
+        }
+    });
+
+    std::thread([server] { server->run("127.0.0.1", "18722", 1); }).detach();
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+
+    asio::io_context io;
+
+    struct outcome {
+        bool connected = false;
+        bool sent = false;
+        bool received = false;
+        std::string status;
+        std::string payload;
+    } result;
+
+    auto report = [](std::exception_ptr error) {
+        if (!error) return;
+
+        try {
+            std::rethrow_exception(error);
+        } catch (const std::exception& exception) {
+            std::printf("    [异常] %s\n", exception.what());
+        }
+    };
+
+    asio::co_spawn(
+        io,
+        [&result]() -> asio::awaitable<void> {
+            websocket::client client;
+            client.set_read_timeout(std::chrono::milliseconds(3000));
+            client.set_write_timeout(std::chrono::milliseconds(3000));
+            client.get_request().set_path("/echo");
+
+            result.connected = co_await client.connect("127.0.0.1", "18722");
+            if (!result.connected) co_return;
+
+            result.status.assign(client.get_response().get_status_code());
+
+            result.sent = co_await client.send("hi");
+
+            if (auto incoming = co_await client.read()) {
+                result.received = true;
+                result.payload = std::move(incoming->payload);
+            }
+
+            co_await client.close();
+        },
+        report);
+
+    // tls_client：没起服务端，连接应当干净失败（顺带确认 TLS 版能实例化、能跑）
+    bool tls_failed = false;
+    asio::co_spawn(
+        io,
+        [&tls_failed]() -> asio::awaitable<void> {
+            websocket::tls_client client;
+            tls_failed = !co_await client.connect("127.0.0.1", "18799");
+        },
+        report);
+
+    io.run();
+
+    std::printf("    status=%s payload=\"%s\"\n", result.status.c_str(), result.payload.c_str());
+    check(tls_failed, "tls_client 连不上时干净返回 false");
+    check(result.connected, "client 握手成功");
+    check(result.status == "101", "握手响应是 101");
+    check(result.sent, "client send 成功");
+    check(result.received && result.payload == "echo:hi", "收到服务端回显");
 }
 void test_server() {
     std::printf("\n[server]\n");
@@ -788,6 +874,8 @@ int main() {
     test_handshake();
     test_websocket_session();
     test_upgrade();
+    test_websocket_client();
+    test_websocket_live();
     test_text();
     test_request_parser();
     test_server();
