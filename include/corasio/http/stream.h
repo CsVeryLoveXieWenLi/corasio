@@ -5,10 +5,13 @@
  */
 #pragma once
 
+#include "corasio/detail/socket.h"
+
 #include <asio.hpp>
 
 #include <cstddef>
 #include <chrono>
+#include <cstdint>
 #include <optional>
 #include <string_view>
 #include <tuple>
@@ -32,6 +35,9 @@ struct stream_traits {
     };
 
     asio::awaitable<bool> handshake(Socket&, std::string_view, std::chrono::milliseconds) noexcept { co_return true; };
+
+    // 底下那层 tcp socket（TLS 版本是 next_layer），存活探测要用
+    Socket& tcp_layer(Socket& socket) noexcept { return socket; };
 };
 
 template <typename Socket>
@@ -70,8 +76,16 @@ public:
         co_return true;
     };
 
-    // 复用前只看本地状态，不额外发系统调用；对端关了的话写的时候会被发现
-    bool is_open() noexcept { return socket_.has_value() && socket_->lowest_layer().is_open(); };
+    // 复用前探一下：对端已经关了就能提前发现。
+    // 健康空闲连接只多一次 select（零超时），不发包、不消费数据、不改阻塞模式
+    bool is_usable() noexcept {
+        if (!socket_.has_value()) return false;
+
+        auto& layer = traits_.tcp_layer(*socket_);
+        if (!layer.is_open()) return false;
+
+        return !detail::socket::is_peer_closed(static_cast<std::intptr_t>(layer.native_handle()));
+    };
     void close() noexcept {
         if (!socket_.has_value()) return;
 

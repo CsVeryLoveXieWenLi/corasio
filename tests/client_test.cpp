@@ -403,10 +403,24 @@ void run_closing_stub(unsigned short port, int rounds, std::atomic<int>* served)
     acceptor.bind(endpoint, ec);
     acceptor.listen(asio::socket_base::max_listen_connections, ec);
 
+    acceptor.non_blocking(true, ec);
+
     for (int round = 0; round < rounds; ++round) {
         asio::ip::tcp::socket socket(io);
-        acceptor.accept(socket, ec);
-        if (ec) return;
+        bool accepted = false;
+
+        // 最多等 3 秒，避免对端没重连时把测试卡死
+        for (int attempt = 0; attempt < 300 && !accepted; ++attempt) {
+            acceptor.accept(socket, ec);
+            if (!ec) {
+                accepted = true;
+                break;
+            }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+
+        if (!accepted) return;
 
         asio::streambuf request;
         asio::read_until(socket, request, "\r\n\r\n", ec);
@@ -439,8 +453,7 @@ void test_client_reconnect() {
         bool first = false;
         std::string first_body;
         bool second = false;
-        bool third = false;
-        std::string third_body;
+        std::string second_body;
     } result;
 
     auto report = [](std::exception_ptr error) {
@@ -467,14 +480,16 @@ void test_client_reconnect() {
             result.first = co_await client.send();
             if (result.first) result.first_body.assign(client.get_response().get_body());
 
-            // 服务端已经断开：强制长连接，不复用判断，这一次发不出去就算了
-            result.second = co_await client.send();
+            // 等服务端的 FIN 到达，存活探测才有东西可看
+            asio::steady_timer pause(co_await asio::this_coro::executor);
+            pause.expires_after(std::chrono::milliseconds(200));
+            co_await pause.async_wait(asio::as_tuple);
 
-            // 约定：失败后由调用方自己 connect，再发一次
+            // 服务端已经断开：connect 的存活探测应该能提前发现，直接重连
             if (!co_await client.connect("127.0.0.1:18723")) co_return;
 
-            result.third = co_await client.send();
-            if (result.third) result.third_body.assign(client.get_response().get_body());
+            result.second = co_await client.send();
+            if (result.second) result.second_body.assign(client.get_response().get_body());
 
             co_return;
         },
@@ -483,13 +498,11 @@ void test_client_reconnect() {
     io.run();
     stub.join();
 
-    std::printf("    first=%s second=%d third=%s served=%d\n", result.first_body.c_str(), static_cast<int>(result.second),
-                result.third_body.c_str(), served.load());
+    std::printf("    first=%s second=%s served=%d\n", result.first_body.c_str(), result.second_body.c_str(), served.load());
 
     check(result.connected && result.first, "第一次请求成功");
     check(result.first_body == "round0", "第一次响应正确");
-    check(!result.second, "服务端断开后这次 send 失败（不主动判断连接）");
-    check(result.third, "调用方重新 connect 后 send 成功");
-    check(result.third_body == "round1", "重连后的响应来自新连接");
+    check(result.second, "服务端断开后，connect 探测到 EOF 并重连，第二次 send 直接成功");
+    check(result.second_body == "round1", "重连后的响应来自新连接");
     check(served.load() == 2, "桩服务端共接了两条连接");
 }

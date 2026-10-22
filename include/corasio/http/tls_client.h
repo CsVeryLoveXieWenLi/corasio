@@ -69,6 +69,8 @@ struct stream_traits<tls_socket> {
         co_return head.size() > 12 && head[9] == '2';
     };
 
+    asio::ip::tcp::socket& tcp_layer(tls_socket& socket) noexcept { return socket.next_layer(); };
+
     asio::awaitable<bool> handshake(tls_socket& socket, std::string_view host, std::chrono::milliseconds timeout) noexcept {
         // SNI 要的名字必须活到握手结束，只能复制
         const std::string name(host);
