@@ -143,10 +143,6 @@ asio::awaitable<bool> basic_client<Stream>::send() noexcept {
 
             if (err == HPE_PAUSED) {
                 buffer_->consume(buffer_->readable_size());
-
-                // 服务端说这条连接不再复用：直接关掉，下次 connect 会重连
-                if (!parser_.get().get_keep_alive()) close();
-
                 co_return true;
             }
 

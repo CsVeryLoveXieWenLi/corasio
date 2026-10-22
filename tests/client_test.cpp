@@ -439,7 +439,8 @@ void test_client_reconnect() {
         bool first = false;
         std::string first_body;
         bool second = false;
-        std::string second_body;
+        bool third = false;
+        std::string third_body;
     } result;
 
     auto report = [](std::exception_ptr error) {
@@ -466,11 +467,12 @@ void test_client_reconnect() {
             result.first = co_await client.send();
             if (result.first) result.first_body.assign(client.get_response().get_body());
 
-            client.get_request().set_path("/second");
-            if (!co_await client.connect("127.0.0.1:18723")) co_return;
-
+            // 服务端已经断开：强制长连接，不复用判断，这一次发不出去就算了
             result.second = co_await client.send();
-            if (result.second) result.second_body.assign(client.get_response().get_body());
+
+            // 上一次失败时已经关掉流，这次 send 内部会重连
+            result.third = co_await client.send();
+            if (result.third) result.third_body.assign(client.get_response().get_body());
 
             co_return;
         },
@@ -479,11 +481,13 @@ void test_client_reconnect() {
     io.run();
     stub.join();
 
-    std::printf("    first=%s second=%s served=%d\n", result.first_body.c_str(), result.second_body.c_str(), served.load());
+    std::printf("    first=%s second=%d third=%s served=%d\n", result.first_body.c_str(), static_cast<int>(result.second),
+                result.third_body.c_str(), served.load());
 
     check(result.connected && result.first, "第一次请求成功");
     check(result.first_body == "round0", "第一次响应正确");
-    check(result.second, "服务端断开后第二次 send 依然成功（内部重连）");
-    check(result.second_body == "round1", "第二次响应来自新连接");
-    check(served.load() == 2, "桩服务端确实接了两条连接");
+    check(!result.second, "服务端断开后这次 send 失败（不主动判断连接）");
+    check(result.third, "再下一次 send 自己重连并成功");
+    check(result.third_body == "round1", "重连后的响应来自新连接");
+    check(served.load() == 2, "桩服务端共接了两条连接");
 }
