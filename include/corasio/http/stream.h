@@ -59,7 +59,9 @@ public:
         traits_.make(co_await asio::this_coro::executor, socket_);
 
         asio::ip::tcp::resolver resolver(co_await asio::this_coro::executor);
-        const auto resolved = co_await resolver.async_resolve(host, port, asio::cancel_after(connect_timeout_, asio::as_tuple));
+        // resolver 的异步操作不支持取消，套 cancel_after 是无用的：
+        // DNS 这一段不受 connect_timeout 约束（要约束得自带线程池做解析）
+        const auto resolved = co_await resolver.async_resolve(host, port, asio::as_tuple);
         if (std::get<0>(resolved)) co_return false;
 
         const auto connected =
