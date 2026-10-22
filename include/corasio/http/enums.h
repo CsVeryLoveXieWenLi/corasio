@@ -9,6 +9,18 @@
 
 
 namespace corasio::http::enums {
+namespace method {
+static constexpr std::string_view get = "GET";
+static constexpr std::string_view head = "HEAD";
+static constexpr std::string_view post = "POST";
+static constexpr std::string_view put = "PUT";
+static constexpr std::string_view delete_ = "DELETE";
+static constexpr std::string_view connect = "CONNECT";
+static constexpr std::string_view options = "OPTIONS";
+static constexpr std::string_view trace = "TRACE";
+static constexpr std::string_view patch = "PATCH";
+} // namespace method
+
 namespace status_code {
 static constexpr std::string_view continue_ = "100";
 static constexpr std::string_view switching_protocols = "101";

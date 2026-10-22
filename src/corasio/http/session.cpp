@@ -38,7 +38,7 @@ asio::awaitable<void> session::send(http::request& request, http::response& resp
     // HEAD / 204 / 304 不能带 body：response::to() 把 body 放在最后一个切片，摘掉即可
     if (!response.get_body().empty()) {
         const auto code = response.get_status_code();
-        if (request.get_method() == "HEAD" || code == enums::status_code::no_content || code == enums::status_code::not_modified) {
+        if (request.get_method() == enums::method::head || code == enums::status_code::no_content || code == enums::status_code::not_modified) {
             buffers_.pop_back();
         }
     }

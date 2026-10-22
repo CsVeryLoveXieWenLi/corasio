@@ -136,7 +136,7 @@ asio::awaitable<bool> basic_client<Stream>::connect(std::string_view hostname) n
     key_ = handshake::make_key();
 
     request_.set_version(http::enums::version::v1_1);
-    if (request_.get_method().empty()) request_.set_method("GET");
+    if (request_.get_method().empty()) request_.set_method(http::enums::method::get);
     if (request_.get_path().empty()) request_.set_path("/");
     request_.set_header("host", hostname); // 带端口就更准确
     request_.set_header("upgrade", "websocket");
