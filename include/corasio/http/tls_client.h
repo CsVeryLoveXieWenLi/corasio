@@ -14,6 +14,7 @@
 
 #include <openssl/ssl.h>
 
+#include <chrono>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -46,18 +47,18 @@ struct stream_traits<tls_socket> {
 
 
     // 让代理建隧道：CONNECT host:port，等到 2xx
-    asio::awaitable<bool> connect_tunnel(tls_socket& socket, std::string_view host, std::string_view port) noexcept {
+    asio::awaitable<bool> connect_tunnel(tls_socket& socket, std::string_view host, std::string_view port, std::chrono::milliseconds timeout) noexcept {
         const std::string authority = std::string(host) + ":" + std::string(port);
         const std::string request = "CONNECT " + authority + " HTTP/1.1\r\nHost: " + authority + "\r\n\r\n";
 
-        const auto written = co_await asio::async_write(socket.next_layer(), asio::buffer(request), asio::as_tuple);
+        const auto written = co_await asio::async_write(socket.next_layer(), asio::buffer(request), asio::cancel_after(timeout, asio::as_tuple));
         if (std::get<0>(written)) co_return false;
 
         // 一次读一个字节，避免把隧道后面的 TLS 数据吃掉
         std::string head;
         char byte = 0;
         while (head.find("\r\n\r\n") == std::string::npos) {
-            const auto result = co_await socket.next_layer().async_read_some(asio::buffer(&byte, 1), asio::as_tuple);
+            const auto result = co_await socket.next_layer().async_read_some(asio::buffer(&byte, 1), asio::cancel_after(timeout, asio::as_tuple));
             if (std::get<0>(result) || std::get<1>(result) == 0) co_return false;
 
             head.push_back(byte);
@@ -68,12 +69,12 @@ struct stream_traits<tls_socket> {
         co_return head.size() > 12 && head[9] == '2';
     };
 
-    asio::awaitable<bool> handshake(tls_socket& socket, std::string_view host) noexcept {
+    asio::awaitable<bool> handshake(tls_socket& socket, std::string_view host, std::chrono::milliseconds timeout) noexcept {
         // SNI 要的名字必须活到握手结束，只能复制
         const std::string name(host);
         ::SSL_set_tlsext_host_name(socket.native_handle(), name.c_str());
 
-        const auto result = co_await socket.async_handshake(asio::ssl::stream_base::client, asio::as_tuple);
+        const auto result = co_await socket.async_handshake(asio::ssl::stream_base::client, asio::cancel_after(timeout, asio::as_tuple));
         co_return std::get<0>(result) ? false : true;
     };
 

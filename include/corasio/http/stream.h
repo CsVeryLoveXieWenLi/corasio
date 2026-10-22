@@ -8,6 +8,7 @@
 #include <asio.hpp>
 
 #include <cstddef>
+#include <chrono>
 #include <optional>
 #include <string_view>
 #include <tuple>
@@ -26,10 +27,11 @@ struct stream_traits {
     };
 
     // 明文不建隧道：连上代理直接发 absolute-form
-    asio::awaitable<bool> connect_tunnel(Socket&, std::string_view, std::string_view) noexcept { co_return true; };
+    asio::awaitable<bool> connect_tunnel(Socket&, std::string_view, std::string_view, std::chrono::milliseconds) noexcept {
+        co_return true;
+    };
 
-
-    asio::awaitable<bool> handshake(Socket&, std::string_view) noexcept { co_return true; };
+    asio::awaitable<bool> handshake(Socket&, std::string_view, std::chrono::milliseconds) noexcept { co_return true; };
 };
 
 template <typename Socket>
@@ -40,6 +42,9 @@ public:
     static constexpr std::string_view default_port = stream_traits<Socket>::default_port;
 
 public:
+    // 建连阶段（解析 / TCP 连接 / 隧道 / 握手）共用的超时
+    void set_connect_timeout(std::chrono::milliseconds timeout) noexcept { connect_timeout_ = timeout; };
+
     // tunnel_host 为空表示直连；非空则先让代理按它建隧道，再用它做 SNI
     asio::awaitable<bool> connect(std::string_view host,
                                   std::string_view port,
@@ -48,18 +53,19 @@ public:
         traits_.make(co_await asio::this_coro::executor, socket_);
 
         asio::ip::tcp::resolver resolver(co_await asio::this_coro::executor);
-        const auto resolved = co_await resolver.async_resolve(host, port, asio::as_tuple);
+        const auto resolved = co_await resolver.async_resolve(host, port, asio::cancel_after(connect_timeout_, asio::as_tuple));
         if (std::get<0>(resolved)) co_return false;
 
-        const auto connected = co_await asio::async_connect(socket_->lowest_layer(), std::get<1>(resolved), asio::as_tuple);
+        const auto connected =
+            co_await asio::async_connect(socket_->lowest_layer(), std::get<1>(resolved), asio::cancel_after(connect_timeout_, asio::as_tuple));
         if (std::get<0>(connected)) co_return false;
 
         asio::error_code ignored;
         socket_->lowest_layer().set_option(asio::ip::tcp::no_delay(true), ignored);
 
         const bool tunnel = !tunnel_host.empty();
-        if (tunnel && !co_await traits_.connect_tunnel(*socket_, tunnel_host, tunnel_port)) co_return false;
-        if (!co_await traits_.handshake(*socket_, tunnel ? tunnel_host : host)) co_return false;
+        if (tunnel && !co_await traits_.connect_tunnel(*socket_, tunnel_host, tunnel_port, connect_timeout_)) co_return false;
+        if (!co_await traits_.handshake(*socket_, tunnel ? tunnel_host : host, connect_timeout_)) co_return false;
 
         co_return true;
     };
@@ -89,6 +95,8 @@ public:
 private:
     stream_traits<Socket> traits_ {};
     std::optional<Socket> socket_;
+
+    std::chrono::milliseconds connect_timeout_{5000};
 };
 
 using plain_stream = basic_stream<asio::ip::tcp::socket>;

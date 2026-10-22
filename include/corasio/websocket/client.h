@@ -49,6 +49,9 @@ public:
     void set_write_timeout(std::chrono::milliseconds ms) noexcept { write_timeout_ = ms; };
     void set_buffer_size(std::size_t size) noexcept { buffer_size_ = size; };
 
+    // 建连阶段（解析 / TCP 连接 / TLS 握手）的超时
+    void set_connect_timeout(std::chrono::milliseconds ms) noexcept { connect_timeout_ = ms; };
+
     // 握手请求，connect 之前可以改 path / 加头
     http::request& get_request() noexcept { return request_; };
 
@@ -80,6 +83,7 @@ private:
     http::response_parser parser_;
     std::string key_;
 
+    std::chrono::milliseconds connect_timeout_{5000};
     std::chrono::milliseconds read_timeout_{5000};
     std::chrono::milliseconds write_timeout_{5000};
     std::size_t buffer_size_ = 128 * 1000;
@@ -125,6 +129,7 @@ asio::awaitable<bool> basic_client<Stream>::connect(std::string_view hostname) n
     const auto port = parts.second.empty() ? std::string_view(Stream::default_port) : parts.second;
 
     stream_.emplace();
+    stream_->set_connect_timeout(connect_timeout_);
     buffer_.emplace(buffer_size_);
 
     if (!co_await stream_->connect(host, port)) {

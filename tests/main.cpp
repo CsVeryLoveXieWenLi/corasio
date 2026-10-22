@@ -822,6 +822,38 @@ void test_server_body() {
     check(result.chunked == "5:world", "chunked 的请求体完整");
     check(result.empty == "0:", "之后那条 GET 的 body 是空的（reset 清干净了）");
 }
+void test_connect_timeout() {
+    std::printf("\n[connect 超时]\n");
+
+    asio::io_context io;
+
+    struct outcome {
+        bool connected = true;
+        long long elapsed = 0;
+    } result;
+
+    asio::co_spawn(
+        io,
+        [&result]() -> asio::awaitable<void> {
+            http::client client;
+            client.set_connect_timeout(std::chrono::milliseconds(200));
+
+            // 不可路由地址：没超时的话要卡到系统默认的 SYN 重试
+            const auto begin = std::chrono::steady_clock::now();
+            result.connected = co_await client.connect("10.255.255.1");
+            result.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - begin).count();
+
+            co_return;
+        },
+        asio::detached);
+
+    io.run();
+
+    std::printf("    connected=%d 耗时=%lldms\n", static_cast<int>(result.connected), result.elapsed);
+
+    check(!result.connected, "连不上返回 false");
+    check(result.elapsed < 2000, "建连超时生效（200ms 左右就返回，不会卡到系统默认）");
+}
 void test_server() {
     std::printf("\n[server]\n");
 
@@ -972,6 +1004,7 @@ int main() {
     test_text();
     test_request_parser();
     test_server();
+    test_connect_timeout();
     test_server_body();
     test_client();
     test_client_reconnect();
