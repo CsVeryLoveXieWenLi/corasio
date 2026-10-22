@@ -730,6 +730,98 @@ void test_websocket_client() {
     check(result.sent, "client send 成功");
     check(result.received && result.payload == "echo:hi", "收到服务端回显");
 }
+void test_server_body() {
+    std::printf("\n[server 请求体]\n");
+
+    auto server = std::make_shared<http::server>();
+    server->set_read_timeout(std::chrono::milliseconds(3000));
+    server->set_write_timeout(std::chrono::milliseconds(3000));
+    server->set_handler([](http::request& request, http::response& response, http::session& session) -> asio::awaitable<void> {
+        const std::string body(request.get_body());
+        const std::string reply = std::to_string(body.size()) + ":" + body;
+        const std::string content_length = std::to_string(reply.size()); // set_header 只存 view，得让它活到 send 完
+
+        response.set_version(http::enums::version::v1_1);
+        response.set_status_code(http::enums::status_code::ok);
+        response.set_status_message(http::enums::status_message::ok);
+        response.set_header("content-length", content_length);
+        response.set_body(reply);
+
+        co_await session.send(request, response);
+    });
+
+    std::thread([server] { server->run("127.0.0.1", "18724", 1); }).detach();
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+
+    asio::io_context io;
+
+    struct outcome {
+        bool connected = false;
+        std::string post;       // content-length 的请求体
+        std::string chunked;    // chunked 的请求体
+        std::string empty;      // 之后一条没有 body 的 GET，必须是空的
+    } result;
+
+    auto report = [](std::exception_ptr error) {
+        if (!error) return;
+
+        try {
+            std::rethrow_exception(error);
+        } catch (const std::exception& exception) {
+            std::printf("    [异常] %s\n", exception.what());
+        }
+    };
+
+    asio::co_spawn(
+        io,
+        [&result]() -> asio::awaitable<void> {
+            http::client client;
+            client.set_read_timeout(std::chrono::milliseconds(3000));
+            client.set_write_timeout(std::chrono::milliseconds(3000));
+
+            result.connected = co_await client.connect("127.0.0.1:18724");
+            if (!result.connected) co_return;
+
+            auto& request = client.get_request();
+            request.set_version(http::enums::version::v1_1);
+
+            // 1) 带 content-length 的 POST
+            request.set_method(http::enums::method::post);
+            request.set_path("/post");
+            request.set_header("content-length", "5");
+            request.set_body("hello");
+            if (!co_await client.send()) co_return;
+            result.post.assign(client.get_response().get_body());
+
+            // 2) chunked 的 POST：request::to() 原样写 body，所以这里得自己按 chunk 编码
+            request.get_headers().erase("content-length");
+            request.set_path("/chunked");
+            request.set_header("transfer-encoding", "chunked");
+            request.set_body("5\r\nworld\r\n0\r\n\r\n");
+            if (!co_await client.send()) co_return;
+            result.chunked.assign(client.get_response().get_body());
+
+            // 3) 同一条连接上再来个没有 body 的 GET：body 必须已经清干净
+            request.get_headers().erase("transfer-encoding");
+            request.set_method(http::enums::method::get);
+            request.set_path("/empty");
+            request.set_body({});
+            if (!co_await client.send()) co_return;
+            result.empty.assign(client.get_response().get_body());
+
+            co_return;
+        },
+        report);
+
+    io.run();
+
+    std::printf("    post=%s chunked=%s empty=%s\n", result.post.c_str(), result.chunked.c_str(), result.empty.c_str());
+
+    check(result.connected, "连上服务端");
+    check(result.post == "5:hello", "content-length 的请求体完整");
+    check(result.chunked == "5:world", "chunked 的请求体完整");
+    check(result.empty == "0:", "之后那条 GET 的 body 是空的（reset 清干净了）");
+}
 void test_server() {
     std::printf("\n[server]\n");
 
@@ -880,6 +972,7 @@ int main() {
     test_text();
     test_request_parser();
     test_server();
+    test_server_body();
     test_client();
     test_client_reconnect();
     test_tls_client();

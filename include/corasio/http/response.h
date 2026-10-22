@@ -27,6 +27,7 @@ public:
 public:
     void set_version(std::string_view version) noexcept;
     void set_body(std::string_view body) noexcept;
+    // 只存 view：key/value 的生命周期要调用方保证（传临时 std::string 会悬空）
     void set_header(std::string_view key, std::string_view value) noexcept;
 
     void set_status_code(std::string_view status_code) noexcept;
