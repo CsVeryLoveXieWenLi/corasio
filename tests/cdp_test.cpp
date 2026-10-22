@@ -30,6 +30,7 @@ struct ws_target {
     std::string host;
     std::string port;
     std::string path;
+    std::string authority; // host:port，直接喂给 connect
 };
 
 // 从 /json/version 的 JSON 里抠出 webSocketDebuggerUrl
@@ -59,6 +60,7 @@ bool split_ws_url(const std::string& url, ws_target& out) {
     const auto colon = authority.rfind(':');
     if (colon == std::string::npos) return false;
 
+    out.authority = authority;
     out.host = authority.substr(0, colon);
     out.port = authority.substr(colon + 1);
     out.path = url.substr(slash);
@@ -122,7 +124,7 @@ void test_cdp() {
                 request.set_path(cdp_version_path);
                 request.set_header("host", cdp_authority);
 
-                if (!co_await client.connect(cdp_host, cdp_port)) co_return;
+                if (!co_await client.connect(cdp_authority)) co_return;
                 if (!co_await client.send()) co_return;
 
                 body.assign(client.get_response().get_body());
@@ -140,7 +142,7 @@ void test_cdp() {
             ws.set_write_timeout(cdp_timeout);
             ws.get_request().set_path(target.path);
 
-            result.connected = co_await ws.connect(target.host, target.port);
+            result.connected = co_await ws.connect(target.authority);
             result.status.assign(ws.get_response().get_status_code());
             if (!result.connected) co_return;
 

@@ -23,6 +23,7 @@ using namespace corasio;
 namespace {
 constexpr const char* client_host = "127.0.0.1";
 constexpr const char* client_port = "18712";
+constexpr const char* client_authority = "127.0.0.1:18712";
 constexpr const char* tls_port = "18713";
 constexpr const char* cert_file = "tests/certs/server.crt";
 constexpr const char* key_file = "tests/certs/server.key";
@@ -130,7 +131,7 @@ void test_client() {
             c.set_write_timeout(std::chrono::milliseconds(3000));
             c.set_buffer_size(4096);
 
-            result.connected = co_await c.connect(client_host, client_port);
+            result.connected = co_await c.connect(client_authority);
             if (!result.connected) co_return;
 
             auto& request = c.get_request();
@@ -148,7 +149,7 @@ void test_client() {
             }
 
             // 复用连接：同一个 hostname，connect 不该重连
-            result.reused = co_await c.connect(client_host, client_port);
+            result.reused = co_await c.connect(client_authority);
 
             c.get_request().set_path("/again");
             result.second = co_await c.send();
@@ -192,7 +193,8 @@ void test_tls_client() {
             c.set_write_timeout(std::chrono::milliseconds(5000));
             c.set_buffer_size(4096);
 
-            result.connected = co_await c.connect(std::string(client_host) + ":" + tls_port);
+            const std::string tls_authority = std::string(client_host) + ":" + tls_port;
+            result.connected = co_await c.connect(tls_authority);
             if (!result.connected) co_return;
 
             auto& request = c.get_request();
@@ -315,7 +317,7 @@ void test_proxy() {
         [&result]() -> asio::awaitable<void> {
             http::client c;
             
-            result.connected = co_await c.connect("127.0.0.1", "18714");
+            result.connected = co_await c.connect("127.0.0.1:18714");
             if (!result.connected) co_return;
 
             auto& request = c.get_request();

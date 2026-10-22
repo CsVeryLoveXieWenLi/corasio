@@ -7,6 +7,7 @@
 
 #include "corasio/detail/buffer.h"
 #include "corasio/detail/random.h"
+#include "corasio/detail/text.h"
 #include "corasio/http/enums.h"
 #include "corasio/http/request.h"
 #include "corasio/http/response_parser.h"
@@ -54,8 +55,8 @@ public:
     // 握手响应（101）
     http::response& get_response() noexcept { return parser_.get(); };
 
-    // 建连 + 握手；101 和 accept 都对上才算成功
-    asio::awaitable<bool> connect(std::string_view host, std::string_view port = {}) noexcept;
+    // 建连 + 握手；hostname 可带端口（"host:port"），不带就按流的默认端口（明文 80 / TLS 443）
+    asio::awaitable<bool> connect(std::string_view hostname) noexcept;
 
     // 读一条完整消息，失败/被关闭返回 nullopt
     asio::awaitable<std::optional<message>> read() noexcept;
@@ -114,9 +115,14 @@ asio::awaitable<bool> basic_client<Stream>::fill_frame(header& out, std::size_t&
 }
 
 template <typename Stream>
-asio::awaitable<bool> basic_client<Stream>::connect(std::string_view host, std::string_view port) noexcept {
+asio::awaitable<bool> basic_client<Stream>::connect(std::string_view hostname) noexcept {
     if (stream_.has_value()) co_return true;
-    if (port.empty()) port = Stream::default_port;
+
+    const auto parts = detail::text::split_hostname(hostname);
+    if (parts.first.empty()) co_return false;
+
+    const auto host = parts.first;
+    const auto port = parts.second.empty() ? std::string_view(Stream::default_port) : parts.second;
 
     stream_.emplace();
     buffer_.emplace(buffer_size_);
@@ -132,7 +138,7 @@ asio::awaitable<bool> basic_client<Stream>::connect(std::string_view host, std::
     request_.set_version(http::enums::version::v1_1);
     if (request_.get_method().empty()) request_.set_method("GET");
     if (request_.get_path().empty()) request_.set_path("/");
-    request_.set_header("host", host);
+    request_.set_header("host", hostname); // 带端口就更准确
     request_.set_header("upgrade", "websocket");
     request_.set_header("connection", "Upgrade");
     request_.set_header("sec-websocket-key", key_);

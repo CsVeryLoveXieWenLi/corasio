@@ -695,7 +695,7 @@ void test_websocket_client() {
             client.set_write_timeout(std::chrono::milliseconds(3000));
             client.get_request().set_path("/echo");
 
-            result.connected = co_await client.connect("127.0.0.1", "18722");
+            result.connected = co_await client.connect("127.0.0.1:18722");
             if (!result.connected) co_return;
 
             result.status.assign(client.get_response().get_status_code());
@@ -717,7 +717,7 @@ void test_websocket_client() {
         io,
         [&tls_failed]() -> asio::awaitable<void> {
             websocket::tls_client client;
-            tls_failed = !co_await client.connect("127.0.0.1", "18799");
+            tls_failed = !co_await client.connect("127.0.0.1:18799");
         },
         report);
 

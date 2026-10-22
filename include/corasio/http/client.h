@@ -9,6 +9,7 @@
 #include "corasio/http/request.h"
 #include "corasio/http/response.h"
 #include "corasio/http/response_parser.h"
+#include "corasio/detail/text.h"
 #include "corasio/http/stream.h"
 
 #include <asio.hpp>
@@ -171,9 +172,13 @@ asio::awaitable<bool> basic_client<Stream>::send() noexcept {
 
 class client : public basic_client<plain_stream> {
 public:
-    // 走代理时把 request 的 path 设成完整 URL 即可，这里只是连对端
-    asio::awaitable<bool> connect(std::string_view host, std::string_view port) noexcept {
-        co_return co_await do_connect(host, port, {}, {});
+    // hostname 可带端口（"host:port"），不带就用 80。
+    // 走代理时把代理的 host:port 传进来、request 的 path 设成完整 URL 即可
+    asio::awaitable<bool> connect(std::string_view hostname) noexcept {
+        const auto parts = detail::text::split_hostname(hostname);
+        const auto port = parts.second.empty() ? plain_stream::default_port : parts.second;
+
+        co_return co_await do_connect(parts.first, port, {}, {});
     };
 };
 

@@ -76,7 +76,7 @@ void test_websocket_live() {
                 client.set_write_timeout(live_timeout);
                 client.get_request().set_path(plain_path);
 
-                if (!co_await client.connect(plain_host, "80")) {
+                if (!co_await client.connect(plain_host)) {
                     result.plain_status.assign(client.get_response().get_status_code());
                     co_return;
                 }
@@ -91,7 +91,7 @@ void test_websocket_live() {
                 client.set_read_timeout(live_timeout);
                 client.set_write_timeout(live_timeout);
 
-                if (!co_await client.connect(secure_host, "443")) {
+                if (!co_await client.connect(secure_host)) {
                     result.secure_status.assign(client.get_response().get_status_code());
                     co_return;
                 }
@@ -107,7 +107,7 @@ void test_websocket_live() {
                 client.set_read_timeout(live_timeout);
                 client.set_write_timeout(live_timeout);
 
-                result.redirect_connected = co_await client.connect(redirect_host, "80");
+                result.redirect_connected = co_await client.connect(redirect_host);
                 result.redirect_status.assign(client.get_response().get_status_code());
             }
         },
