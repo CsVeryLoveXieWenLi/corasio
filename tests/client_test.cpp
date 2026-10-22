@@ -470,7 +470,9 @@ void test_client_reconnect() {
             // 服务端已经断开：强制长连接，不复用判断，这一次发不出去就算了
             result.second = co_await client.send();
 
-            // 上一次失败时已经关掉流，这次 send 内部会重连
+            // 约定：失败后由调用方自己 connect，再发一次
+            if (!co_await client.connect("127.0.0.1:18723")) co_return;
+
             result.third = co_await client.send();
             if (result.third) result.third_body.assign(client.get_response().get_body());
 
@@ -487,7 +489,7 @@ void test_client_reconnect() {
     check(result.connected && result.first, "第一次请求成功");
     check(result.first_body == "round0", "第一次响应正确");
     check(!result.second, "服务端断开后这次 send 失败（不主动判断连接）");
-    check(result.third, "再下一次 send 自己重连并成功");
+    check(result.third, "调用方重新 connect 后 send 成功");
     check(result.third_body == "round1", "重连后的响应来自新连接");
     check(served.load() == 2, "桩服务端共接了两条连接");
 }

@@ -118,11 +118,8 @@ asio::awaitable<bool> basic_client<Stream>::do_connect(std::string_view host,
 
 template <typename Stream>
 asio::awaitable<bool> basic_client<Stream>::send() noexcept {
-    // 服务器断开了就重连一次，不重发已写出去的报文
-    if (!stream_.has_value()) {
-        if (host_.empty()) co_return false;
-        if (!co_await do_connect(host_, port_, tunnel_host_, tunnel_port_)) co_return false;
-    }
+    // 约定：发送失败（含连接已断）由调用方自己再 connect，这里不做隐式重连
+    if (!stream_.has_value()) co_return false;
 
     buffers_.clear();
     request_.to(buffers_);
