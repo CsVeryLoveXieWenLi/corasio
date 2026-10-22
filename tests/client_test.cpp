@@ -13,6 +13,7 @@
 #include <asio.hpp>
 #include <asio/ssl.hpp>
 
+#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <string>
@@ -388,4 +389,101 @@ void test_tls_proxy() {
     check(connect_line == "CONNECT example.com:443 HTTP/1.1", "CONNECT 的是目标 host:port");
     check(result.sent && result.status == "200", "隧道内拿到响应");
     check(result.body == "via proxy", "body 正确");
+}
+namespace {
+// 每条连接回完就主动断开，模拟会踹掉长连接的服务端
+void run_closing_stub(unsigned short port, int rounds, std::atomic<int>* served) {
+    asio::io_context io;
+    asio::error_code ec;
+
+    asio::ip::tcp::acceptor acceptor(io);
+    const auto endpoint = asio::ip::tcp::endpoint(asio::ip::make_address(client_host), port);
+    acceptor.open(endpoint.protocol(), ec);
+    acceptor.set_option(asio::socket_base::reuse_address(true), ec);
+    acceptor.bind(endpoint, ec);
+    acceptor.listen(asio::socket_base::max_listen_connections, ec);
+
+    for (int round = 0; round < rounds; ++round) {
+        asio::ip::tcp::socket socket(io);
+        acceptor.accept(socket, ec);
+        if (ec) return;
+
+        asio::streambuf request;
+        asio::read_until(socket, request, "\r\n\r\n", ec);
+        if (ec) return;
+
+        const std::string body = "round" + std::to_string(round);
+        const std::string response =
+            "HTTP/1.1 200 OK\r\ncontent-length: " + std::to_string(body.size()) + "\r\nconnection: close\r\n\r\n" + body;
+        asio::write(socket, asio::buffer(response), ec);
+
+        socket.close(ec);
+        served->fetch_add(1);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+}
+} // namespace
+
+void test_client_reconnect() {
+    std::printf("\n[client 重连（服务端主动断开）]\n");
+
+    std::atomic<int> served{0};
+    std::thread stub(run_closing_stub, 18723, 2, &served);
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    asio::io_context io;
+
+    struct outcome {
+        bool connected = false;
+        bool first = false;
+        std::string first_body;
+        bool second = false;
+        std::string second_body;
+    } result;
+
+    auto report = [](std::exception_ptr error) {
+        if (!error) return;
+
+        try {
+            std::rethrow_exception(error);
+        } catch (const std::exception& exception) {
+            std::printf("    [异常] %s\n", exception.what());
+        }
+    };
+
+    asio::co_spawn(
+        io,
+        [&result]() -> asio::awaitable<void> {
+            http::client client;
+            client.set_read_timeout(std::chrono::milliseconds(3000));
+            client.set_write_timeout(std::chrono::milliseconds(3000));
+
+            client.get_request().set_path("/first");
+            result.connected = co_await client.connect("127.0.0.1:18723");
+            if (!result.connected) co_return;
+
+            result.first = co_await client.send();
+            if (result.first) result.first_body.assign(client.get_response().get_body());
+
+            client.get_request().set_path("/second");
+            if (!co_await client.connect("127.0.0.1:18723")) co_return;
+
+            result.second = co_await client.send();
+            if (result.second) result.second_body.assign(client.get_response().get_body());
+
+            co_return;
+        },
+        report);
+
+    io.run();
+    stub.join();
+
+    std::printf("    first=%s second=%s served=%d\n", result.first_body.c_str(), result.second_body.c_str(), served.load());
+
+    check(result.connected && result.first, "第一次请求成功");
+    check(result.first_body == "round0", "第一次响应正确");
+    check(result.second, "服务端断开后第二次 send 依然成功（内部重连）");
+    check(result.second_body == "round1", "第二次响应来自新连接");
+    check(served.load() == 2, "桩服务端确实接了两条连接");
 }

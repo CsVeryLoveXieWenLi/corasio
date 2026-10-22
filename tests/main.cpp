@@ -881,6 +881,7 @@ int main() {
     test_request_parser();
     test_server();
     test_client();
+    test_client_reconnect();
     test_tls_client();
     test_proxy();
     test_tls_proxy();

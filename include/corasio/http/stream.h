@@ -28,6 +28,7 @@ struct stream_traits {
     // 明文不建隧道：连上代理直接发 absolute-form
     asio::awaitable<bool> connect_tunnel(Socket&, std::string_view, std::string_view) noexcept { co_return true; };
 
+
     asio::awaitable<bool> handshake(Socket&, std::string_view) noexcept { co_return true; };
 };
 
@@ -63,6 +64,8 @@ public:
         co_return true;
     };
 
+    // 复用前只看本地状态，不额外发系统调用；对端关了的话写的时候会被发现
+    bool is_open() noexcept { return socket_.has_value() && socket_->lowest_layer().is_open(); };
     void close() noexcept {
         if (!socket_.has_value()) return;
 

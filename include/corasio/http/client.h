@@ -91,7 +91,9 @@ asio::awaitable<bool> basic_client<Stream>::do_connect(std::string_view host,
                                                        std::string_view port,
                                                        std::string_view tunnel_host,
                                                        std::string_view tunnel_port) noexcept {
-    if (stream_.has_value() && host == host_ && port == port_ && tunnel_host == tunnel_host_ && tunnel_port == tunnel_port_) {
+    // 目标没变、而且这条连接确实还活着，才复用；不然重连
+    if (stream_.has_value() && host == host_ && port == port_ && tunnel_host == tunnel_host_ && tunnel_port == tunnel_port_ &&
+        stream_->is_open()) {
         co_return true;
     }
 
@@ -141,6 +143,10 @@ asio::awaitable<bool> basic_client<Stream>::send() noexcept {
 
             if (err == HPE_PAUSED) {
                 buffer_->consume(buffer_->readable_size());
+
+                // 服务端说这条连接不再复用：直接关掉，下次 connect 会重连
+                if (!parser_.get().get_keep_alive()) close();
+
                 co_return true;
             }
 
