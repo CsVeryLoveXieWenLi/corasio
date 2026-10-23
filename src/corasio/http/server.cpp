@@ -12,6 +12,7 @@
 #include "corasio/http/session.h"
 
 #include <asio.hpp>
+#include <asio/config.hpp>
 #include <llhttp.h>
 
 #include <chrono>
@@ -129,8 +130,12 @@ void server::run(std::string host, std::string port, std::uint16_t worker_num) n
     executors.reserve(total);
     guards.reserve(total);
 
+    // asio 默认 resolver 只有 1 条工作线程，DNS 会串行排队；
+    // 这里按工作线程数给 resolver 配同样多的线程，高并发建连时才不会互相堵
+    const std::string resolver_config = "resolver.threads=" + std::to_string(workers);
+
     for (std::size_t index = 0; index < total; ++index) {
-        contexts.push_back(std::make_unique<asio::io_context>());
+        contexts.push_back(std::make_unique<asio::io_context>(asio::config_from_string{resolver_config}));
         executors.push_back(contexts.back()->get_executor());
         guards.push_back(asio::make_work_guard(executors.back()));
     }
